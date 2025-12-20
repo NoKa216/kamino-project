@@ -1,0 +1,11 @@
+{
+  "name": "kamino-monorepo",
+  "private": true,
+  "workspaces": [
+    "mobile",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "npm install"
+  }
+}
