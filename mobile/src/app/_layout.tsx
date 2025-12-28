@@ -1,22 +1,37 @@
-import { Slot } from 'expo-router'; // שימי לב: Slot ולא Stack
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import "../../global.css";
+import { Stack } from 'expo-router';
 import { LogBox } from 'react-native';
+import '../../global.css';
 
-LogBox.ignoreLogs(['SafeAreaView', 'Reanimated']);
+// 1. השתקת הפופ-אפים והלוגים בטרמינל
+LogBox.ignoreLogs([
+    '[Reanimated] Reading from `value` during component render',
+    '[Reanimated] Writing to `value` during component render',
+    'SafeAreaView has been deprecated',
+]);
 
-// קוד ההשתקה הגרעיני שלך (אפשר להשאיר אותו)
-const originalWarn = console.warn;
-console.warn = (...args) => {
-    const logString = args.join(' ');
-    if (logString.includes('SafeAreaView') || logString.includes('Reanimated')) return;
-    originalWarn(...args);
-};
+if (__DEV__) {
+    // 2. השתקת הפס השחור בתחתית המסך באימולטור (Warning Notifications)
+    LogBox.ignoreAllLogs();
+
+    const ignoreWarns = [
+        '[Reanimated] Reading from `value` during component render',
+        '[Reanimated] Writing to `value` during component render',
+        'SafeAreaView has been deprecated',
+    ];
+
+    const warn = console.warn;
+    console.warn = (...args) => {
+        if (ignoreWarns.some((log) => args[0]?.includes?.(log))) {
+            return;
+        }
+        warn(...args);
+    };
+}
 
 export default function RootLayout() {
     return (
-        <SafeAreaProvider>
-            <Slot />
-        </SafeAreaProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+        </Stack>
     );
 }

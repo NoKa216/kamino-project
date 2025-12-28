@@ -14,9 +14,9 @@ export const slides: Slide[] = [
     },
     {
         id: '2',
-        title: 'Curated, Not Copied',
-        subtitle: 'Stop getting generic lists. Swipe right to teach our AI exactly what YOU love.',
-        source: require('../../../assets/animations/swipe-mechanic.json'),
+        title: 'Your Personal Travel Feed',
+        subtitle: 'Swipe through tailored experiences. Like what you see? Our AI learns your vibe instantly.',
+        source: require('../../../assets/animations/card-slide.json'),
     },
     {
         id: '3',

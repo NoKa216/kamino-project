@@ -1,52 +1,59 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, FlatList, Dimensions, Animated, TouchableOpacity, ViewToken } from 'react-native';
+import { View, Text, TouchableOpacity, ViewToken, Dimensions, FlatList } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
-// ודאי שהנתיבים האלו נכונים במבנה התיקיות שלך!
-import { slides } from '../../features/onboarding/onboardingData';
-import AuthModal from '../../auth/AuthModal';
+import { slides } from './onboardingData';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function OnboardingScreen() {
-    const [showAuth, setShowAuth] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
-    const scrollX = useRef(new Animated.Value(0)).current;
+    const flatListRef = useRef<FlatList>(null);
 
-    // תיקון סוגים קטן ל-TypeScript
-    const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
+    // טיפול במעבר דפים בצורה נקייה
     const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
         if (viewableItems.length > 0 && viewableItems[0].index !== null) {
             setActiveIndex(viewableItems[0].index);
         }
     }, []);
 
+    const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
+
+    const handleNext = () => {
+        if (activeIndex < slides.length - 1) {
+            flatListRef.current?.scrollToIndex({
+                index: activeIndex + 1,
+                animated: true
+            });
+        } else {
+            router.replace('/(auth)/login');
+        }
+    };
+
     return (
         <SafeAreaView className="flex-1 bg-white">
-            {/* Skip Button - top-4 for better spacing */}
-            <TouchableOpacity
-                className="absolute top-4 right-8 z-10"
-                onPress={() => setShowAuth(true)}
-            >
-                <Text className="text-gray-500 font-bold text-lg">Skip</Text>
-            </TouchableOpacity>
+            {/* Header */}
+            <View className="px-8 pt-4 items-end">
+                <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
+                    <Text className="text-slate-400 font-bold text-xs tracking-widest uppercase">Skip</Text>
+                </TouchableOpacity>
+            </View>
 
-            <Animated.FlatList
+            {/* FlatList סטנדרטי - ללא 'Animated' כדי להעלים את האזהרות */}
+            <FlatList
+                ref={flatListRef}
                 data={slides}
                 keyExtractor={(item) => item.id}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                    { useNativeDriver: false }
-                )}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={viewConfigRef.current}
                 renderItem={({ item }) => (
-                    <View style={{ width }} className="items-center justify-center -mt-20">
-                        <View className="w-[300px] h-[300px] mb-8">
+                    <View style={{ width }} className="px-10 flex-1 justify-center">
+                        <View style={{ height: height * 0.35 }} className="items-center justify-center">
                             <LottieView
                                 source={item.source}
                                 autoPlay
@@ -54,40 +61,40 @@ export default function OnboardingScreen() {
                                 style={{ width: '100%', height: '100%' }}
                             />
                         </View>
-                        <Text className="text-3xl font-bold text-slate-800 text-center mt-8 px-4">
-                            {item.title}
-                        </Text>
-                        <Text className="text-gray-500 text-center text-lg mt-4 px-8 leading-6">
-                            {item.subtitle}
-                        </Text>
 
-                        {item.id === '3' && (
-                            <TouchableOpacity
-                                className="bg-kamino-violet rounded-full py-4 px-10 mt-10 shadow-lg shadow-indigo-200"
-                                onPress={() => setShowAuth(true)}
-                            >
-                                <Text className="text-white font-bold text-lg">Start Planning</Text>
-                            </TouchableOpacity>
-                        )}
+                        <View className="mt-10">
+                            <Text className="text-4xl font-black text-kamino-dark leading-[44px] tracking-tighter">
+                                {item.title}
+                            </Text>
+                            <Text className="text-slate-500 text-lg mt-4 leading-7 font-medium">
+                                {item.subtitle}
+                            </Text>
+                        </View>
                     </View>
                 )}
             />
 
-            {/* Pagination Dots */}
-            <View className="flex-row justify-center mb-10 space-x-2 h-4 items-center">
-                {slides.map((_, index) => {
-                    const isActive = index === activeIndex;
-                    return (
+            {/* Footer */}
+            <View className="px-10 pb-12">
+                <View className="flex-row mb-10 space-x-2 h-1.5 items-center">
+                    {slides.map((_, index) => (
                         <View
                             key={index}
-                            className={`rounded-full transition-all duration-300 ${isActive ? 'w-8 h-2 bg-kamino-violet' : 'w-2 h-2 bg-gray-300'}`}
+                            className={`h-full rounded-full transition-all duration-300 ${index === activeIndex ? 'w-12 bg-kamino-violet' : 'w-2 bg-slate-200'
+                                }`}
                         />
-                    );
-                })}
-            </View>
+                    ))}
+                </View>
 
-            {/* The Modal */}
-            <AuthModal visible={showAuth} onClose={() => setShowAuth(false)} />
+                <TouchableOpacity
+                    className="bg-kamino-violet w-full h-16 rounded-2xl items-center justify-center shadow-xl shadow-indigo-100"
+                    onPress={handleNext}
+                >
+                    <Text className="text-white font-bold text-lg">
+                        {activeIndex === slides.length - 1 ? "Start Planning" : "Next Step"}
+                    </Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }
