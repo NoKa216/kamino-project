@@ -2,17 +2,18 @@ import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ViewToken, Dimensions, FlatList } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-
 import { slides } from './onboardingData';
+// Import the context instead of using router directly
+import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function OnboardingScreen() {
+    // Destructure the completion function from global state
+    const { completeOnboarding } = useAuth();
     const [activeIndex, setActiveIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
 
-    // טיפול במעבר דפים בצורה נקייה
     const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
         if (viewableItems.length > 0 && viewableItems[0].index !== null) {
             setActiveIndex(viewableItems[0].index);
@@ -21,27 +22,31 @@ export default function OnboardingScreen() {
 
     const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
 
-    const handleNext = () => {
+    /**
+     * Handles the "Next" button logic.
+     * Scrolls to next slide or completes the onboarding process.
+     */
+    const handleNext = async () => {
         if (activeIndex < slides.length - 1) {
             flatListRef.current?.scrollToIndex({
                 index: activeIndex + 1,
                 animated: true
             });
         } else {
-            router.replace('/(auth)/login');
+            // Update global state, triggering navigation in _layout.tsx
+            await completeOnboarding();
         }
     };
 
     return (
         <SafeAreaView className="flex-1 bg-white">
-            {/* Header */}
             <View className="px-8 pt-4 items-end">
-                <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
+                {/* Skip button also triggers the global completion function */}
+                <TouchableOpacity onPress={completeOnboarding}>
                     <Text className="text-slate-400 font-bold text-xs tracking-widest uppercase">Skip</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* FlatList סטנדרטי - ללא 'Animated' כדי להעלים את האזהרות */}
             <FlatList
                 ref={flatListRef}
                 data={slides}
@@ -61,7 +66,6 @@ export default function OnboardingScreen() {
                                 style={{ width: '100%', height: '100%' }}
                             />
                         </View>
-
                         <View className="mt-10">
                             <Text className="text-4xl font-black text-kamino-dark leading-[44px] tracking-tighter">
                                 {item.title}
@@ -74,14 +78,12 @@ export default function OnboardingScreen() {
                 )}
             />
 
-            {/* Footer */}
             <View className="px-10 pb-12">
                 <View className="flex-row mb-10 space-x-2 h-1.5 items-center">
                     {slides.map((_, index) => (
                         <View
                             key={index}
-                            className={`h-full rounded-full transition-all duration-300 ${index === activeIndex ? 'w-12 bg-kamino-violet' : 'w-2 bg-slate-200'
-                                }`}
+                            className={`h-full rounded-full transition-all duration-300 ${index === activeIndex ? 'w-12 bg-kamino-violet' : 'w-2 bg-slate-200'}`}
                         />
                     ))}
                 </View>
