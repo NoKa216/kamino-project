@@ -1,15 +1,17 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
-import { Mail } from 'lucide-react-native';
+import { Mail, AlertCircle } from 'lucide-react-native';
+import { Controller, Control, FieldErrors } from 'react-hook-form';
+import { AuthFormData } from '../../schemas/authSchema';
 
 interface Props {
-    email: string;
-    setEmail: (val: string) => void;
+    control: Control<AuthFormData>;
+    errors: FieldErrors<AuthFormData>;
     onResetPress: () => void;
     onBackToLogin: () => void;
 }
 
-export const ForgotPasswordView = ({ email, setEmail, onResetPress, onBackToLogin }: Props) => (
+export const ForgotPasswordView = ({ control, errors, onResetPress, onBackToLogin }: Props) => (
     <>
         <View className="items-center mb-8">
             <Text className="text-white text-3xl font-black italic tracking-widest uppercase text-center">
@@ -22,19 +24,36 @@ export const ForgotPasswordView = ({ email, setEmail, onResetPress, onBackToLogi
         </View>
 
         <View className="gap-y-6">
-            <View className="bg-white/10 border border-white/20 rounded-2xl h-16 flex-row items-center px-5">
-                <Mail color="rgba(255,255,255,0.4)" size={18} />
-                <TextInput
-                    className="flex-1 ml-4 text-white font-medium"
-                    placeholder="Email Address"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                />
+            {/* --- Email Input --- */}
+            <View>
+                <View className={`bg-white/10 border rounded-2xl h-16 flex-row items-center px-5 ${errors.email ? 'border-red-500/50' : 'border-white/20'}`}>
+                    <Mail color={errors.email ? '#ef4444' : "rgba(255,255,255,0.4)"} size={18} />
+                    <Controller
+                        control={control}
+                        name="email"
+                        render={({ field: { onChange, value, onBlur } }) => (
+                            <TextInput
+                                className="flex-1 ml-4 text-white font-medium"
+                                placeholder="Email Address"
+                                placeholderTextColor="rgba(255,255,255,0.2)"
+                                value={value}
+                                onChangeText={onChange}
+                                onBlur={onBlur}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                            />
+                        )}
+                    />
+                </View>
+                {errors.email && (
+                    <View className="flex-row items-center mt-1 ml-2">
+                        <AlertCircle size={12} color="#ef4444" />
+                        <Text className="text-red-500 text-xs ml-1 font-medium">{errors.email.message}</Text>
+                    </View>
+                )}
             </View>
 
+            {/* Action Button */}
             <TouchableOpacity
                 onPress={onResetPress}
                 className="bg-kamino-violet h-16 rounded-2xl items-center justify-center shadow-lg shadow-kamino-violet/20"
@@ -43,6 +62,7 @@ export const ForgotPasswordView = ({ email, setEmail, onResetPress, onBackToLogi
             </TouchableOpacity>
         </View>
 
+        {/* Navigation Back */}
         <View className="flex-row justify-center mt-10">
             <TouchableOpacity onPress={onBackToLogin}>
                 <Text className="text-white/70 text-[11px] font-bold border-b border-white/30 uppercase tracking-widest">

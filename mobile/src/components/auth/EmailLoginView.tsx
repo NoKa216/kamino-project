@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { Mail, Lock, AlertCircle } from 'lucide-react-native'; // הוספתי אייקון לשגיאות
+import { Mail, Lock, AlertCircle } from 'lucide-react-native';
 import { Control, Controller, FieldErrors } from 'react-hook-form';
-import { AuthFormData } from '../../schemas/authSchema'; // וודא שהנתיב נכון
+import { AuthFormData } from '../../schemas/authSchema';
 
 interface Props {
     control: Control<AuthFormData>;
@@ -31,7 +31,7 @@ export const EmailLoginView = ({
             </View>
 
             <View className="gap-y-4">
-                {/* --- Email Field --- */}
+                {/* Email Field */}
                 <View>
                     <View className={`bg-white/10 border rounded-2xl h-16 flex-row items-center px-5 ${errors.email ? 'border-red-500/50' : 'border-white/20'}`}>
                         <Mail color={errors.email ? "#ef4444" : "rgba(255,255,255,0.4)"} size={18} />
@@ -52,18 +52,15 @@ export const EmailLoginView = ({
                             )}
                         />
                     </View>
-                    {/* Error Message */}
                     {errors.email && (
                         <View className="flex-row items-center mt-1 ml-2">
                             <AlertCircle size={12} color="#ef4444" />
-                            <Text className="text-red-500 text-xs ml-1 font-medium">
-                                {errors.email.message}
-                            </Text>
+                            <Text className="text-red-500 text-xs ml-1 font-medium">{errors.email.message}</Text>
                         </View>
                     )}
                 </View>
 
-                {/* --- Password Field --- */}
+                {/* Password Field */}
                 <View>
                     <View className={`bg-white/10 border rounded-2xl h-16 flex-row items-center px-5 ${errors.password ? 'border-red-500/50' : 'border-white/20'}`}>
                         <Lock color={errors.password ? "#ef4444" : "rgba(255,255,255,0.4)"} size={18} />
@@ -86,9 +83,7 @@ export const EmailLoginView = ({
                     {errors.password && (
                         <View className="flex-row items-center mt-1 ml-2">
                             <AlertCircle size={12} color="#ef4444" />
-                            <Text className="text-red-500 text-xs ml-1 font-medium">
-                                {errors.password.message}
-                            </Text>
+                            <Text className="text-red-500 text-xs ml-1 font-medium">{errors.password.message}</Text>
                         </View>
                     )}
                 </View>
@@ -100,7 +95,6 @@ export const EmailLoginView = ({
                 </TouchableOpacity>
             </View>
 
-            {/* --- Login Button --- */}
             <TouchableOpacity
                 onPress={onLogin}
                 disabled={isLoading}
