@@ -10,9 +10,9 @@ import '../../global.css';
 // =============================================================================
 // Suppress known non-critical warnings from dependencies
 LogBox.ignoreLogs([
-    '[Reanimated] Reading from `value` during component render',
-    '[Reanimated] Writing to `value` during component render',
     'SafeAreaView has been deprecated',
+    '[Reanimated] Reading from `value`',
+    '[Reanimated] Writing to `value`',
 ]);
 
 /**

@@ -15,13 +15,20 @@ interface Props {
 export const SignUpView = ({ control, errors, onSignUp, isLoading, onLoginPress }: Props) => {
     return (
         <View>
-            <View className="mb-8 items-center">
-                {/* Title: White & Cinematic */}
-                <Text className="text-white text-3xl font-black italic tracking-widest uppercase">
+            {/* FIX: Added 'w-full' to container to ensure centering works correctly */}
+            <View className="mb-8 items-center w-full">
+                {/* FIX: 
+                   1. 'w-full text-center': Forces centering even if text wraps.
+                   2. 'px-5': Prevents Italic font clipping on Android.
+                   3. 'text-2xl': Slightly smaller font to fit "Create Account" better.
+                */}
+                <Text
+                    className="text-white text-2xl font-black italic tracking-widest uppercase py-2 px-5 w-full text-center"
+                    style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+                >
                     Create Account
                 </Text>
-                {/* Divider: Subtle white opacity */}
-                <View className="h-[1px] w-8 bg-white/20 mt-3" />
+                <View className="h-[1px] w-8 bg-white/20 mt-1" />
             </View>
 
             <View className="gap-y-4">

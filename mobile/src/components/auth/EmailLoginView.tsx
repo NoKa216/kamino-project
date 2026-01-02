@@ -23,11 +23,19 @@ export const EmailLoginView = ({
 }: Props) => {
     return (
         <View>
-            <View className="mb-10 items-center">
-                <Text className="text-white text-3xl font-black italic tracking-widest uppercase">
+            <View className="mb-10 items-center w-full">
+                {/* FIX: 
+                   1. 'px-5': Adds horizontal breathing room so Italic fonts don't get clipped on the right (Android issue).
+                   2. 'py-2': Adds vertical space.
+                   3. 'w-full text-center': Forces the text to take full width so it doesn't wrap aggressively.
+                */}
+                <Text
+                    className="text-white text-3xl font-black italic tracking-widest uppercase py-2 px-5 w-full text-center"
+                    style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+                >
                     Sign In
                 </Text>
-                <View className="h-[1px] w-8 bg-white/20 mt-3" />
+                <View className="h-[1px] w-8 bg-white/20 mt-1" />
             </View>
 
             <View className="gap-y-4">
