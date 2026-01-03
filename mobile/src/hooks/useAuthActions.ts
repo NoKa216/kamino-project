@@ -33,24 +33,84 @@ export const useAuthActions = () => {
         defaultValues: { email: '', password: '', fullName: '' }
     });
 
-    // ... (Login / SignUp / Forgot Password functions remain unchanged)
+    /**
+     * Handle Login Logic with User-Friendly Errors
+     */
     const onLogin = handleSubmit(async (data) => {
         try {
             setIsLoading(true);
             await signIn(data.email, data.password);
         } catch (error: any) {
-            Alert.alert("Login Failed", error.message);
+            let title = "Login Failed";
+            let message = "Something went wrong. Please try again.";
+
+            // Common Firebase Login Errors
+            if (
+                error.code === 'auth/user-not-found' ||
+                error.code === 'auth/wrong-password' ||
+                error.code === 'auth/invalid-credential'
+            ) {
+                message = "Invalid email or password. Please check your details.";
+            } else if (error.code === 'auth/too-many-requests') {
+                title = "Account Locked";
+                message = "Too many failed attempts. Please try again later or reset your password.";
+            } else if (error.code === 'auth/network-request-failed') {
+                title = "Network Error";
+                message = "Please check your internet connection.";
+            } else {
+                // Fallback for unknown errors
+                message = error.message || message;
+            }
+
+            Alert.alert(title, message);
         } finally {
             setIsLoading(false);
         }
     });
 
+    /**
+     * Handle Sign Up Logic with Specific Error Handling (Duplicate Email, Weak Password, etc.)
+     */
     const onSignUp = handleSubmit(async (data) => {
         try {
             setIsLoading(true);
             await signUp(data.email, data.password, data.fullName || '');
         } catch (error: any) {
-            Alert.alert("Signup Failed", error.message);
+            let title = "Sign Up Failed";
+            let message = "Something went wrong. Please try again.";
+
+            // 1. Handle "User Already Exists" (Status 409 or Firebase code)
+            const isUserExists =
+                error.message?.includes('409') ||
+                error.code === 'auth/email-already-in-use' ||
+                error.code === 'auth/credential-already-in-use';
+
+            if (isUserExists) {
+                title = "Account Already Exists";
+                message = "This email address is already registered. Please sign in instead.";
+            }
+            // 2. Handle Weak Password
+            else if (error.code === 'auth/weak-password') {
+                title = "Weak Password";
+                message = "Your password is too weak. Please use at least 6 characters.";
+            }
+            // 3. Handle Invalid Email format
+            else if (error.code === 'auth/invalid-email') {
+                title = "Invalid Email";
+                message = "Please enter a valid email address.";
+            }
+            // 4. Handle Network Issues
+            else if (error.code === 'auth/network-request-failed') {
+                title = "Network Error";
+                message = "Please check your internet connection.";
+            }
+            else {
+                // Fallback: If it's a server error we don't recognize, show the message strictly if needed, 
+                // or a generic one to avoid technical jargon.
+                message = error.message || message;
+            }
+
+            Alert.alert(title, message);
         } finally {
             setIsLoading(false);
         }
@@ -74,8 +134,10 @@ export const useAuthActions = () => {
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
                 Alert.alert("Account Not Found", "There is no account with this email.");
+            } else if (error.code === 'auth/invalid-email') {
+                Alert.alert("Invalid Email", "The email address is badly formatted.");
             } else {
-                Alert.alert("Error", error.message || "Failed to send reset email.");
+                Alert.alert("Error", "Failed to send reset email. Please try again.");
             }
         } finally {
             setIsLoading(false);
@@ -84,39 +146,31 @@ export const useAuthActions = () => {
 
     /**
      * Handler for Google Sign-In.
-     * UPDATED: Handles cancellation gracefully without alerts.
      */
     const onGoogleSignIn = async () => {
         try {
             setIsLoading(true);
 
-            // Step 1: Verify Play Services and Perform Native Sign-In
             await GoogleSignin.hasPlayServices();
             const userInfo = await GoogleSignin.signIn();
 
             const idToken = userInfo.data?.idToken;
             const googleUser = userInfo.data?.user;
 
-            // FIX: If no token is found (e.g. user cancelled), do NOT throw an error.
-            // Just log it and return so the UI stays consistent.
             if (!idToken) {
                 console.log('Google Sign-In: No ID token found (User cancelled or config missing)');
-                return; // <--- Stops execution here, preventing the "Catch" block alert
+                return;
             }
 
-            // Step 2: Authenticate with Firebase using the Google Credential
             const credential = GoogleAuthProvider.credential(idToken);
             const userCredential = await signInWithCredential(auth, credential);
 
-            // Step 3: Backend Synchronization
             const firebaseToken = await userCredential.user.getIdToken();
             await authService.socialAuth(firebaseToken, googleUser?.name || undefined);
 
-            // Step 4: Force Refresh Context
             await refreshUser();
 
         } catch (error: any) {
-            // Handle explicit cancellation codes
             if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                 console.log('User cancelled the login flow');
             } else if (error.code === statusCodes.IN_PROGRESS) {
@@ -124,9 +178,8 @@ export const useAuthActions = () => {
             } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                 Alert.alert("Error", "Google Play Services not available.");
             } else {
-                // Real errors
                 console.error('Google Sign-In Error:', error);
-                Alert.alert("Google Login Failed", error.message);
+                Alert.alert("Google Login Failed", "Could not connect to Google.");
             }
         } finally {
             setIsLoading(false);

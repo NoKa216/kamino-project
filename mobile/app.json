@@ -15,10 +15,19 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.kamino",
+      "bundleIdentifier": "com.luckyblackcatdev.kamino",
       "icon": "./assets/icon.png",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "appleTeamId": "QSRZJUK4UV"
+      "appleTeamId": "QSRZJUK4UV",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.848023042942-fhp77kbg1jf54vj60thn630sh5oj5d8l"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.luckyblackcatdev.kamino",

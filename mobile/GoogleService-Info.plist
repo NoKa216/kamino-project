@@ -3,9 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>848023042942-lifska4giu6fhp9tukv80ellv9gm2u6u.apps.googleusercontent.com</string>
+	<string>848023042942-fhp77kbg1jf54vj60thn630sh5oj5d8l.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.848023042942-lifska4giu6fhp9tukv80ellv9gm2u6u</string>
+	<string>com.googleusercontent.apps.848023042942-fhp77kbg1jf54vj60thn630sh5oj5d8l</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>848023042942-f12s9m7t4prvl7vj10odrspdlvcgm43m.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyBEzAE5ss8oaOU2jEHJUH65plYypUzBGog</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.anonymous.kamino</string>
+	<string>com.luckyblackcatdev.kamino</string>
 	<key>PROJECT_ID</key>
 	<string>kamino-22b02</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:848023042942:ios:0279f78b0a3d4e8942512f</string>
+	<string>1:848023042942:ios:677dc20e9e50533342512f</string>
 </dict>
 </plist>

@@ -6,9 +6,18 @@ module.exports = {
     extend: {
       colors: {
         kamino: {
-          violet: '#8B5CF6',
-          dark: '#1E1B4B',
-          light: '#F5F3FF',
+          // Primary brand color (CTAs, highlights, active states). Keeps the 'Tech' aesthetic.
+          violet: '#8B5CF6', 
+          
+          // Primary background. Pure black for high contrast, gradients, and immersive media overlays.
+          background: '#000000',
+          
+          // Secondary surface color (e.g., cards, modals, bottom sheets). Deep grey to distinguish from the true black background.
+          surface: '#121212',
+          
+          // Typography system
+          text: '#FFFFFF', // High emphasis text
+          textMuted: 'rgba(255, 255, 255, 0.6)', // Medium emphasis / secondary text
         },
       },
     },

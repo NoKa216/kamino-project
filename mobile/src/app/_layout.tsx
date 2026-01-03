@@ -9,12 +9,7 @@ import '../../global.css';
 // LOGBOX CONFIGURATION
 // =============================================================================
 // Suppress known non-critical warnings from dependencies
-LogBox.ignoreLogs([
-    'SafeAreaView has been deprecated',
-    '[Reanimated] Reading from `value`',
-    '[Reanimated] Writing to `value`',
-]);
-
+LogBox.ignoreAllLogs(true);
 /**
  * InitialLayout: The Navigation Guard.
  * Observes global auth state and redirects user to the appropriate screen.
