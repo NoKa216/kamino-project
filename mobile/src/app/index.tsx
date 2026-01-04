@@ -1,9 +1,11 @@
-import { View, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { Loader } from '../components/ui/Loader';
 
+/**
+ * Root Index
+ * Serves as a placeholder while the RootLayout handles the redirect logic.
+ * Uses the custom Loader to maintain visual consistency.
+ */
 export default function RootIndex() {
-    return (
-        <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator color="#A78BFA" />
-        </View>
-    );
+    return <Loader />;
 }

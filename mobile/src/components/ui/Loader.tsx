@@ -1,31 +1,27 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Dimensions } from 'react-native';
 import LottieView from 'lottie-react-native';
 
+const { width } = Dimensions.get('window');
+
 /**
- * Loader Component
- * Displays a Lottie animation (Paper Plane) centered on the screen.
- * Used for loading states and data synchronization pauses.
+ * Global Loader Component
+ * Displays a premium Lottie animation (Paper Plane) on a dark background.
+ * Used during initial app load and heavy data fetching.
  */
 export const Loader = () => {
     return (
-        <View style={styles.container}>
+        <View className="flex-1 bg-[#050505] items-center justify-center z-50">
             <LottieView
-                // Ensure this file exists in your assets folder!
+                // וודא שהקובץ קיים בנתיב הזה. אם אין לך, תוריד JSON של מטוס ושמור שם.
                 source={require('../../../assets/animations/paper-plane.json')}
                 autoPlay
                 loop
-                style={{ width: 150, height: 150 }}
+                style={{
+                    width: width * 0.5, // רספונסיבי: 50% מרוחב המסך
+                    height: width * 0.5,
+                }}
             />
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'transparent', // Transparent to blend with parent layouts
-    },
-});
