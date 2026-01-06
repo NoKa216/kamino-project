@@ -11,7 +11,7 @@ const getBaseUrl = () => {
     if (process.env.EXPO_PUBLIC_API_URL) {
         // Ensure we don't double-slash the /api part if it's already in the env
         const url = process.env.EXPO_PUBLIC_API_URL;
-        return url.endsWith('/api') ? url : `${url}/api`;
+        return url;
     }
 
     // 2. Fallback: Old logic (Simulators only)

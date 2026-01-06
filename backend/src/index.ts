@@ -3,11 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
+import placesRoutes from './routes/places.routes';
 
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config();
 
-// Initialize the Express application
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
@@ -15,29 +15,23 @@ const port = process.env.PORT || 3000;
 // MIDDLEWARE CONFIGURATION
 // =============================================================================
 
-// Use Helmet to secure Express apps by setting various HTTP headers
-app.use(helmet());
-
-// Enable Cross-Origin Resource Sharing (CORS) to allow requests from the mobile app
-app.use(cors());
-
-// Parse incoming requests with JSON payloads
-app.use(express.json());
+app.use(helmet()); // Secure HTTP headers
+app.use(cors());   // Enable CORS
+app.use(express.json()); // Parse JSON bodies
 
 // =============================================================================
 // ROUTE CONFIGURATION
 // =============================================================================
 
-/**
- * Mount Auth Routes
- * Note: The '/api' prefix is crucial to match the client-side Axios configuration.
- * Endpoint: /api/auth/login, /api/auth/signup, etc.
- */
+// Mount Auth Routes
 app.use('/api/auth', authRoutes);
+
+// Mount Places Routes
+// This exposes endpoints like: /api/places/search
+app.use('/api/places', placesRoutes);
 
 /**
  * Health Check Endpoint
- * A simple route to verify that the server is up and running.
  */
 app.get('/', (req: Request, res: Response) => {
     res.send('Kamino Backend is Running 🚀');

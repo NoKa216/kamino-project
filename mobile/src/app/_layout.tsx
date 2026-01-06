@@ -20,14 +20,15 @@ function InitialLayout() {
         const inAuthGroup = segments[0] === '(auth)';
         const inAppGroup = segments[0] === '(app)';
         const inOnboarding = segments[0] === 'onboarding';
-        // הוספנו זיהוי למסך היצירה
         const inCreate = segments[0] === 'create';
+        // --- תיקון: הוספנו את generating לרשימת הדפים המותרים ---
+        const inGenerating = segments[0] === 'generating';
 
         if (isFirstLaunch && !inOnboarding) {
             router.replace('/onboarding');
         }
-        // תנאי מתוקן: מאפשר להישאר אם המשתמש מחובר והוא ב-(app) או ב-create
-        else if (!isFirstLaunch && user && !inAppGroup && !inCreate) {
+        // --- תיקון: הוספנו את !inGenerating לתנאי ---
+        else if (!isFirstLaunch && user && !inAppGroup && !inCreate && !inGenerating) {
             router.replace('/(app)');
         }
         else if (!isFirstLaunch && !user && !inAuthGroup) {
@@ -43,14 +44,20 @@ function InitialLayout() {
             <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
             <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
             <Stack.Screen name="(app)" options={{ animation: 'fade' }} />
-
-            {/* הגדרת המודל שיושב מעל הכל */}
             <Stack.Screen
                 name="create"
                 options={{
                     presentation: 'modal',
                     animation: 'slide_from_bottom',
                     gestureEnabled: true
+                }}
+            />
+            <Stack.Screen
+                name="generating"
+                options={{
+                    headerShown: false,
+                    presentation: 'fullScreenModal',
+                    animation: 'fade'
                 }}
             />
         </Stack>
