@@ -76,6 +76,14 @@ export default function AppLayout() {
                     tabBarStyle: { display: 'none' }
                 }}
             />
+            {/* HIDE TABS FOR SWIPE SCREEN - REVERTED BY USER REQUEST - NOW HIDDEN AGAIN BY REQUEST */}
+            <Tabs.Screen
+                name="trip/[id]/swipe"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: 'none' }
+                }}
+            />
 
             {/* create screen removed from here as it moved to root stack */}
         </Tabs>

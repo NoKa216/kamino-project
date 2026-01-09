@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Sparkles, Plane, Map, Wallet } from 'lucide-react-native';
+import { TripsService } from '../services/trips';
 
 const LOADING_MESSAGES = [
     "Curating the best spots for you...",
@@ -22,21 +23,85 @@ export default function GeneratingScreen() {
             setMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
         }, 1500);
 
-        const finishTimeout = setTimeout(() => {
-            console.log("Trip Generated!");
+        const generate = async () => {
+            try {
+                // Parse params
+                const dest = params.destination as string;
+                let datesObj = { start: '', end: '' };
+                try {
+                    datesObj = JSON.parse(params.dates as string || '{}');
+                } catch (e) {
+                    console.error('Error parsing dates:', e);
+                }
 
-            // --- FIX: Close all modals instead of replacing route inside the modal ---
-            // זה יסגור גם את מסך הטעינה וגם את מסך היצירה, ויחזיר אותך לאפליקציה הראשית (שהיא לא מודל)
-            router.dismissAll();
+                const interestsList = JSON.parse(params.interests as string || '[]');
+                const mustHavesList = JSON.parse(params.mustHaves as string || '[]');
 
-            // אופציונלי: אם תרצה שמיד אחרי הסגירה הוא יעבור לטאב "הטיולים שלי":
-            // router.push('/(app)/trips');
+                // Merge interests and mustHaves for the AI prompt context
+                // UPDATE: Sent separately now for service to handle exclusion vs inclusion context
+                const allInterests = [...interestsList]; // Just interests
 
-        }, 6000);
+                const tripData: any = {
+                    destination: dest,
+                    startDate: datesObj.start,
+                    endDate: datesObj.end,
+                    travelers: params.group as string,
+                    budget: params.budget as string,
+                    interests: allInterests,
+                    mustHaveItems: mustHavesList // Send explicitly
+                };
+
+                // Call API
+                const result = await TripsService.generateTrip(tripData);
+                console.log("Trip Candidates Generated:", result);
+
+                // --- FIX: Navigate to Swipe Screen ---
+                if (result.success && result.candidates) {
+                    // We dismissAll first to clear the modal wizard stack
+                    router.dismissAll();
+
+                    // Then we push the new swipe screen
+                    // HACK: Use a slight delay or just push immediately if root allows. 
+                    // Since dismissAll goes to root, we should push relative to root.
+                    // Note: params must be strings usually.
+
+                    // But wait! `dismissAll` wipes the history. If we are in a tab, we probably just want to go to the new screen?
+                    // The user said: "Modify the success callback to navigate to the new Swipe Screen".
+                    // The current stack is a Modal stack. If we push from here, we might stay in modal or stack on top.
+                    // If we want a full screen experience, we might want to stay in stack?
+                    // User Rule from context: "When finishing a wizard flow... use router.dismissAll()".
+                    // But here we are moving to a "Discovery Phase". Is that part of wizard or app?
+                    // "Create SwipeScreen at src/app/(app)/trip/[id]/swipe.tsx". This implies it is inside the main app layout.
+                    // So we MUST dismissAll() (to close the modal) AND then navigate to the page in the main app.
+
+                    setTimeout(() => {
+                        router.push({
+                            pathname: '/(app)/trip/[id]/swipe',
+                            params: {
+                                id: result.tripId,
+                                candidates: JSON.stringify(result.candidates)
+                            }
+                        });
+                    }, 100);
+                } else {
+                    throw new Error("Invalid response from server");
+                }
+
+            } catch (error) {
+                console.error("Generation failed:", error);
+                alert("Failed to plan trip. Please try again.");
+                router.dismissAll(); // safe fallback
+            }
+        };
+
+        // Add a small delay so the user sees at least one message/animation cycle
+        const startTimeout = setTimeout(() => {
+            generate();
+        }, 2000);
 
         return () => {
             clearInterval(messageInterval);
-            clearTimeout(finishTimeout);
+            clearTimeout(startTimeout);
         };
     }, []);
 

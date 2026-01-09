@@ -3,9 +3,11 @@ import { LogBox, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
-import '../../global.css';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import '../../global.css';
 import { Loader } from '../components/ui/Loader';
+
 
 LogBox.ignoreAllLogs(true);
 
@@ -64,13 +66,16 @@ function InitialLayout() {
     );
 }
 
+
 export default function RootLayout() {
     return (
         <SafeAreaProvider>
-            <AuthProvider>
-                <StatusBar barStyle="light-content" backgroundColor="#050505" />
-                <InitialLayout />
-            </AuthProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <AuthProvider>
+                    <StatusBar barStyle="light-content" backgroundColor="#050505" />
+                    <InitialLayout />
+                </AuthProvider>
+            </GestureHandlerRootView>
         </SafeAreaProvider>
     );
 }

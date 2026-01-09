@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import placesRoutes from './routes/places.routes';
+import tripsRoutes from './routes/trips.routes';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +30,8 @@ app.use('/api/auth', authRoutes);
 // Mount Places Routes
 // This exposes endpoints like: /api/places/search
 app.use('/api/places', placesRoutes);
+
+app.use('/api/trips', tripsRoutes);
 
 /**
  * Health Check Endpoint
