@@ -1,8 +1,17 @@
-import Constants from 'expo-constants';
+/**
+ * Trips Service - Production Ready (2026 Standard)
+ * 
+ * Responsibilities:
+ * - Trip generation API calls
+ * - User trips retrieval
+ * 
+ * Architecture:
+ * - Uses centralized Axios instance from auth.service.ts
+ * - No duplicate URL configuration
+ * - Consistent error handling
+ */
 
-const BACKEND_URL = Constants.expoConfig?.hostUri
-    ? `http://${Constants.expoConfig.hostUri.split(':').shift()}:3000/api`
-    : 'http://localhost:3000/api';
+import api from './auth.service';
 
 export interface TripGenerationData {
     destination: string;
@@ -11,7 +20,7 @@ export interface TripGenerationData {
     travelers?: string;
     budget?: string;
     interests?: string[];
-    mustHaveItems?: string[]; // NEW
+    mustHaveItems?: string[];
 }
 
 export interface GeneratedTrip {
@@ -22,61 +31,34 @@ export interface GeneratedTrip {
 }
 
 export const TripsService = {
+    /**
+     * Generate a new trip with AI-powered place recommendations
+     */
     generateTrip: async (data: TripGenerationData, token?: string): Promise<GeneratedTrip> => {
         try {
-            // Temporary auth header if token is missing for dev
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                // Mock token if none provided (Matches backend mock middleware expectation if any)
-                headers['Authorization'] = `Bearer dev-token`;
-            }
-
             console.log('Generating trip with data:', data);
-            const response = await fetch(`${BACKEND_URL}/trips/generate`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(data),
-            });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Failed to generate trip: ${response.status} ${errorText}`);
-            }
+            // Set authorization header if token provided
+            const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
-            return await response.json();
+            const response = await api.post<GeneratedTrip>('/trips/generate', data, config);
+            return response.data;
         } catch (error) {
             console.error('Trip generation error:', error);
             throw error;
         }
     },
 
+    /**
+     * Fetch all trips for the current user
+     */
     getUserTrips: async (token?: string): Promise<GeneratedTrip[]> => {
         try {
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
+            // Set authorization header if token provided
+            const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                headers['Authorization'] = `Bearer dev-token`;
-            }
-
-            const response = await fetch(`${BACKEND_URL}/trips`, {
-                method: 'GET',
-                headers
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch trips');
-            }
-
-            return await response.json();
+            const response = await api.get<GeneratedTrip[]>('/trips', config);
+            return response.data;
         } catch (error) {
             console.error('Error fetching trips:', error);
             return [];
