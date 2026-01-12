@@ -15,7 +15,7 @@ const TripRequestSchema = z.object({
     mustHaveItems: z.array(z.string()).optional() // NEW
 });
 
-import { PlaceDiscoveryService } from '../services/placeDiscovery.service';
+import { PlaceDiscoveryOrchestrator } from '../services/placeDiscovery.orchestrator';
 
 export const generateTripCandidates = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -23,8 +23,8 @@ export const generateTripCandidates = async (req: Request, res: Response): Promi
         const validatedData = TripRequestSchema.parse(req.body);
         const { destination, startDate, endDate, travelers, budget, interests, mustHaveItems } = validatedData;
 
-        // 2. Call Discovery Service
-        const candidates = await PlaceDiscoveryService.generateCandidates({
+        // 2. Call Discovery Orchestrator
+        const candidates = await PlaceDiscoveryOrchestrator.generateCandidates({
             destination,
             interests: interests || [],
             budget,
