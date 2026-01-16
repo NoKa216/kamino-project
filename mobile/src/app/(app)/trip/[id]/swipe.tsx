@@ -26,7 +26,7 @@ export default function SwipeScreen() {
     const { id: tripId, candidates: candidatesParam, swipedIds: swipedIdsParam } = useLocalSearchParams();
 
     // Parse initial candidates and swiped IDs with useMemo (prevents re-parsing on every render)
-    const initialCandidates = useMemo(() => {
+    const unswipedCandidates = useMemo(() => {
         if (!candidatesParam) return [];
 
         try {
@@ -55,14 +55,9 @@ export default function SwipeScreen() {
         }
     }, [candidatesParam, swipedIdsParam]);
 
-    // Candidates state - initialized from memoized parsed value
-    const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
+    // Use unswiped candidates directly (no intermediate state needed)
+    const candidates = unswipedCandidates;
     const [selectedPlace, setSelectedPlace] = useState<PlaceCandidate | null>(null);
-
-    // Set initial candidates once when component mounts
-    useEffect(() => {
-        setCandidates(initialCandidates);
-    }, [initialCandidates]);
 
     const [likedPlaces, setLikedPlaces] = useState<PlaceCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);

@@ -44,6 +44,7 @@ export interface GeneratedTrip {
     destination?: string;
     startDate?: string;
     endDate?: string;
+    heroImage?: string; // Curated destination image URL
     status?: string;
     // NEW LEAN SCHEMA (preferred)
     swipedLikeIds?: string[];

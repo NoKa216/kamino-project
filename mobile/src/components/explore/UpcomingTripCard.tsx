@@ -45,16 +45,21 @@ export function UpcomingTripCard({ trip }: UpcomingTripCardProps) {
         return `${monthName} ${start.getDate()}-${end.getDate()}`;
     }, [trip.startDate, trip.endDate]);
 
-    // Get trip image from first candidate's first photo, or fallback
+    // Get trip image: curated heroImage first, then candidate photos, then fallback
     const tripImage = useMemo(() => {
+        // Priority 1: Curated hero image (set by backend for iconic destinations)
+        if (trip.heroImage) {
+            return trip.heroImage;
+        }
+        // Priority 2: First candidate's photo reference
         const photoRef = trip.candidates?.[0]?.photoRefs?.[0];
         if (photoRef) {
             return getPhotoUrl(photoRef, 1200);
         }
-        // Fallback to legacy photos array
+        // Priority 3: Legacy photos array
         const legacyPhoto = trip.candidates?.[0]?.photos?.[0];
         return legacyPhoto || DEFAULT_TRIP_IMAGE;
-    }, [trip.candidates]);
+    }, [trip.heroImage, trip.candidates]);
 
     // Extract city name (first part before comma) and country/region (second part)
     const cityName = trip.destination?.split(',')[0]?.trim() || 'Trip';

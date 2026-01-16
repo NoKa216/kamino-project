@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { PlaceDiscoveryOrchestrator } from '../services/placeDiscovery.orchestrator';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { applyLogisticsFilters, LogisticsInput } from '../utils/logisticsFilter.util';
+import { getCuratedImage } from '../utils/destinationImages.util';
 import * as admin from 'firebase-admin';
 
 // Input validation schemas
@@ -78,6 +79,9 @@ export const generateTripCandidates = async (req: Request, res: Response): Promi
             console.log(`[Trips] Schedule adjusted: ${scheduleNotes.join(', ')}`);
         }
 
+        // Step 3: Get hero image (curated first, then first candidate's photo)
+        const heroImage = getCuratedImage(destination) || undefined;
+
         // Save to Firestore with proper structure
         const tripData = {
             userId,
@@ -85,6 +89,7 @@ export const generateTripCandidates = async (req: Request, res: Response): Promi
             destination,        // CRITICAL: At root level for list view
             startDate,          // CRITICAL: At root level
             endDate,            // CRITICAL: At root level
+            heroImage,          // Curated destination image (if available)
             travelers,
             budget,
             interests,
