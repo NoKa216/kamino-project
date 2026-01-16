@@ -8,10 +8,11 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../lib/firebase';
 import { authService } from '../services/auth.service';
+import { User } from '../types/user.types';
 
 // Interface defining the shape of the Authentication Context
 interface AuthContextType {
-    user: any | null;           // The current user object from the backend
+    user: User | null;           // The current user object from the backend
     loading: boolean;           // Global loading state (splash screen)
     isFirstLaunch: boolean;     // Flag determining if Onboarding should be shown
     signIn: (email: string, pass: string) => Promise<void>;
@@ -35,7 +36,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<any | null>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [isFirstLaunch, setIsFirstLaunch] = useState(false);
 

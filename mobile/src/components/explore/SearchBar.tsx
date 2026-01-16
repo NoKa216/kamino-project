@@ -13,7 +13,7 @@ export function SearchBar() {
     return (
         <View className="px-6 mb-10">
             <TouchableOpacity
-                onPress={() => router.push('/(app)/create')}
+                onPress={() => router.push('/create')}
                 activeOpacity={0.8}
                 className="w-full h-16 bg-white/5 rounded-[20px] border border-white/10 flex-row items-center px-5 overflow-hidden active:bg-white/10"
             >

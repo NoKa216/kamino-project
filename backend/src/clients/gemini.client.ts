@@ -131,7 +131,19 @@ Return STRICTLY JSON array of objects with this structure:
 
 function parseAndValidate(text: string): Partial<PlaceCandidate>[] {
     try {
-        const parsed = JSON.parse(text);
+        // Attempt 1: Direct parse
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(text);
+        } catch {
+            // Attempt 2: Extract JSON array using regex (for dirty LLM responses)
+            const arrayMatch = text.match(/\[[\s\S]*\]/);
+            if (!arrayMatch) {
+                console.warn('[Gemini] Could not extract JSON array from response');
+                return [];
+            }
+            parsed = JSON.parse(arrayMatch[0]);
+        }
 
         if (!Array.isArray(parsed)) {
             console.warn('[Gemini] Response is not an array');
@@ -150,7 +162,7 @@ function parseAndValidate(text: string): Partial<PlaceCandidate>[] {
                 description: candidate.description,
             }));
     } catch (error) {
-        console.error('[Gemini] Failed to parse JSON:', { text, error });
+        console.error('[Gemini] Failed to parse JSON:', { text: text.substring(0, 200), error });
         return [];
     }
 }

@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import { PlaceCandidate } from '../types/place.types';
 import { DEFAULT_RATING, DEFAULT_REVIEW_COUNT } from '../constants/defaults';
+import { getPhotoUrls } from '../utils/imageUtils';
 
 export function usePlaceDetails(place: PlaceCandidate | null, isVisible: boolean) {
     const [photoIndex, setPhotoIndex] = useState(0);
@@ -27,26 +28,42 @@ export function usePlaceDetails(place: PlaceCandidate | null, isVisible: boolean
 
     // Photo navigation
     const handleNextPhoto = useCallback(() => {
-        if (!place?.photos || place.photos.length <= 1) return;
+        const photoCount = getPhotoCount();
+        if (photoCount <= 1) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setPhotoIndex(prev => Math.min(place.photos!.length - 1, prev + 1));
-    }, [place?.photos]);
+        setPhotoIndex(prev => Math.min(photoCount - 1, prev + 1));
+    }, [place?.photos, place?.photoRefs]);
 
     const handlePrevPhoto = useCallback(() => {
-        if (!place?.photos || place.photos.length <= 1) return;
+        const photoCount = getPhotoCount();
+        if (photoCount <= 1) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setPhotoIndex(prev => Math.max(0, prev - 1));
-    }, [place?.photos]);
+    }, [place?.photos, place?.photoRefs]);
 
     const handleToggleFullScreen = useCallback(() => {
         setIsFullScreen(prev => !prev);
     }, []);
 
-    // Computed values
-    const photos = useMemo(() =>
-        place?.photos && place.photos.length > 0 ? place.photos : [],
-        [place?.photos]
-    );
+    // Helper to get photo count
+    function getPhotoCount(): number {
+        if (place?.photoRefs && place.photoRefs.length > 0) return place.photoRefs.length;
+        if (place?.photos && place.photos.length > 0) return place.photos.length;
+        return 0;
+    }
+
+    // Computed values - FIXED: Handle both photoRefs (new) and photos (legacy)
+    const photos = useMemo(() => {
+        // Priority 1: Use photoRefs (new secure method) - convert to URLs
+        if (place?.photoRefs && place.photoRefs.length > 0) {
+            return getPhotoUrls(place.photoRefs, 1200);
+        }
+        // Priority 2: Use photos (legacy direct URLs)
+        if (place?.photos && place.photos.length > 0) {
+            return place.photos;
+        }
+        return [];
+    }, [place?.photoRefs, place?.photos]);
 
     const currentPhoto = useMemo(() => photos[photoIndex], [photos, photoIndex]);
 

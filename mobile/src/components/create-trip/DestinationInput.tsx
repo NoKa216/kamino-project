@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Keyboard, I18nManager, ActivityIndicator } from 'react-native';
+/**
+ * DestinationInput - Pure UI Component
+ * 
+ * Responsibilities:
+ * - Render input field and suggestions dropdown
+ * - All business logic delegated to useDestinationSearch hook
+ */
+
+import React from 'react';
+import { View, Text, TextInput, TouchableOpacity, I18nManager, ActivityIndicator } from 'react-native';
 import { MapPin, X } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import { PlacesService, PlaceResult } from '../../services/places';
+import { useDestinationSearch } from '../../hooks/useDestinationSearch';
 
 interface DestinationInputProps {
     value: string;
@@ -10,104 +17,17 @@ interface DestinationInputProps {
 }
 
 export const DestinationInput = ({ value, onChange }: DestinationInputProps) => {
-    const [query, setQuery] = useState(value);
-    const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const isTyping = useRef(false);
+    const {
+        query,
+        suggestions,
+        showSuggestions,
+        isLoading,
+        handleChangeText,
+        handleSelect,
+        handleClear,
+    } = useDestinationSearch({ initialValue: value, onSelect: onChange });
 
     const isRTL = I18nManager.isRTL;
-
-    // --- FIX: Auto-Resolve Logic ---
-    // האפקט הזה רץ כשהערך מגיע מבחוץ (למשל מ-Explore)
-    useEffect(() => {
-        // אם הגיע ערך חדש והוא שונה ממה שיש לנו כרגע (כלומר זה טעינה ראשונית ולא הקלדה)
-        if (value && value !== query) {
-            isTyping.current = false;
-            setQuery(value);
-
-            // פונקציה פנימית למציאת ההתאמה הטובה ביותר אוטומטית
-            const autoSelectBestMatch = async () => {
-                try {
-                    setIsLoading(true);
-                    // 1. מחפשים בגוגל את השם המקורי (למשל "Santorini")
-                    const results = await PlacesService.searchPlaces(value, 'city');
-
-                    // 2. אם יש תוצאות, לוקחים את הראשונה באופן אוטומטי
-                    if (results.length > 0) {
-                        const bestMatch = results[0];
-                        const fullText = bestMatch.description || bestMatch.mainText;
-
-                        // 3. מעדכנים את השדה ואת האבא עם השם המלא ("Santorini, Greece")
-                        setQuery(fullText);
-                        onChange(fullText);
-                    }
-                } catch (error) {
-                    console.error("Auto-resolve error:", error);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            // מריצים את הבחירה האוטומטית
-            autoSelectBestMatch();
-        }
-    }, [value]);
-
-    // --- לוגיקת חיפוש רגילה (הקלדה) ---
-    useEffect(() => {
-        if (!isTyping.current) return;
-
-        const delayDebounceFn = setTimeout(async () => {
-            if (query.length > 2) {
-                try {
-                    setIsLoading(true);
-                    const results = await PlacesService.searchPlaces(query, 'city');
-                    setSuggestions(results);
-
-                    if (results.length > 0) {
-                        setShowSuggestions(true);
-                    }
-                } catch (error) {
-                    console.error("API Error:", error);
-                } finally {
-                    setIsLoading(false);
-                }
-            } else {
-                setSuggestions([]);
-                setShowSuggestions(false);
-            }
-        }, 500);
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [query]);
-
-    const handleSelect = (item: PlaceResult) => {
-        isTyping.current = false;
-        const fullText = item.description || item.mainText;
-        setQuery(fullText);
-        onChange(fullText);
-        setShowSuggestions(false);
-        setSuggestions([]);
-        Keyboard.dismiss();
-        Haptics.selectionAsync();
-    };
-
-    const handleChangeText = (text: string) => {
-        isTyping.current = true;
-        setQuery(text);
-        if (value !== '') onChange('');
-        if (text.length > 0) setShowSuggestions(true);
-    };
-
-    const handleClear = () => {
-        isTyping.current = false;
-        setQuery('');
-        onChange('');
-        setSuggestions([]);
-        setShowSuggestions(false);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
 
     return (
         <View className="z-[100]">
@@ -126,7 +46,6 @@ export const DestinationInput = ({ value, onChange }: DestinationInputProps) => 
                         value={query}
                         onChangeText={handleChangeText}
                         textAlign={isRTL ? 'right' : 'left'}
-                        writingDirection={isRTL ? 'rtl' : 'ltr'}
                     />
 
                     {isLoading ? (

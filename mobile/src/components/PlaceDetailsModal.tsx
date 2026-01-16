@@ -19,6 +19,7 @@ import { Image } from 'expo-image';
 import { X, MapPin } from 'lucide-react-native';
 import { PlaceCandidate } from '../types/place.types';
 import { usePlaceDetails } from '../hooks/usePlaceDetails';
+import { getStaticMapUrl } from '../utils/imageUtils';
 import { PlaceImageGallery } from './PlaceDetails/PlaceImageGallery';
 import { PlaceMetaInfo } from './PlaceDetails/PlaceMetaInfo';
 import { OpeningHoursRow } from './PlaceDetails/OpeningHoursRow';
@@ -104,7 +105,12 @@ function PlaceDetailsModal({ isVisible, onClose, place }: PlaceDetailsModalProps
                             {place.description}
                         </Text>
 
-                        <LocationMapPreview mapUrl={place.staticMapUrl} />
+                        <LocationMapPreview
+                            mapUrl={place.coordinates
+                                ? getStaticMapUrl(place.coordinates.lat, place.coordinates.lng)
+                                : undefined
+                            }
+                        />
                     </ScrollView>
                 </View>
 

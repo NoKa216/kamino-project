@@ -31,9 +31,9 @@ export const PlacesService = {
     /**
      * Searches for places or attractions via the backend API.
      * @param query - The search text input.
-     * @param type - The type of place to search ('city' | 'attraction').
+     * @param type - The type of place to search (e.g., 'city', 'attraction', 'lodging').
      */
-    searchPlaces: async (query: string, type: 'city' | 'attraction' = 'city'): Promise<PlaceResult[]> => {
+    searchPlaces: async (query: string, type: string = 'city'): Promise<PlaceResult[]> => {
         if (!query || query.trim().length < 2) return [];
 
         try {

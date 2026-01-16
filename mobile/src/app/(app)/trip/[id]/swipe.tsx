@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Pressable, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Heart, Info, ArrowRight } from 'lucide-react-native';
+import { X, Heart, Info, ArrowRight, ChevronLeft } from 'lucide-react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -13,34 +13,58 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 
-import { SwipeableCard, CandidatePlace } from '../../../../components/discovery/SwipeableCard';
+import { SwipeableCard } from '../../../../components/discovery/SwipeableCard';
 import PlaceDetailsModal from '../../../../components/PlaceDetailsModal';
+import { TripsService } from '../../../../services/trips';
+import { PlaceCandidate } from '../../../../types/place.types';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
 
 export default function SwipeScreen() {
     const router = useRouter();
-    const { id: tripId, candidates: candidatesParam } = useLocalSearchParams();
+    const { id: tripId, candidates: candidatesParam, swipedIds: swipedIdsParam } = useLocalSearchParams();
 
-    // Parse candidates safely
-    const [candidates, setCandidates] = useState<CandidatePlace[]>([]);
-    const [selectedPlace, setSelectedPlace] = useState<CandidatePlace | null>(null);
+    // Parse initial candidates and swiped IDs with useMemo (prevents re-parsing on every render)
+    const initialCandidates = useMemo(() => {
+        if (!candidatesParam) return [];
 
-    useEffect(() => {
-        if (candidatesParam) {
-            try {
-                const parsed = JSON.parse(candidatesParam as string);
-                if (Array.isArray(parsed)) {
-                    setCandidates(parsed);
+        try {
+            const allCandidates = JSON.parse(candidatesParam as string);
+
+            // Parse already-swiped IDs for filtering
+            let swipedIds: string[] = [];
+            if (swipedIdsParam) {
+                try {
+                    swipedIds = JSON.parse(swipedIdsParam as string);
+                } catch (e) {
+                    console.warn('[Swipe] Failed to parse swipedIds:', e);
                 }
-            } catch (e) {
-                console.error("Failed to parse candidates", e);
             }
-        }
-    }, [candidatesParam]);
 
-    const [likedPlaces, setLikedPlaces] = useState<CandidatePlace[]>([]);
+            // Filter out already-swiped candidates
+            const validCandidates = Array.isArray(allCandidates)
+                ? allCandidates.filter((c: PlaceCandidate) => !swipedIds.includes(c.id))
+                : [];
+
+            console.log(`[Swipe] Total: ${allCandidates.length}, Swiped: ${swipedIds.length}, Remaining: ${validCandidates.length}`);
+            return validCandidates;
+        } catch (e) {
+            console.error('[Swipe] Failed to parse candidates:', e);
+            return [];
+        }
+    }, [candidatesParam, swipedIdsParam]);
+
+    // Candidates state - initialized from memoized parsed value
+    const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
+    const [selectedPlace, setSelectedPlace] = useState<PlaceCandidate | null>(null);
+
+    // Set initial candidates once when component mounts
+    useEffect(() => {
+        setCandidates(initialCandidates);
+    }, [initialCandidates]);
+
+    const [likedPlaces, setLikedPlaces] = useState<PlaceCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const activeCandidate = candidates[currentIndex];
@@ -50,8 +74,19 @@ export default function SwipeScreen() {
     const rotate = useSharedValue(0);
 
     const handleSwipeComplete = (direction: 'left' | 'right') => {
+        // Update UI state immediately
         if (direction === 'right') {
             setLikedPlaces(prev => [...prev, activeCandidate]);
+        }
+
+        // Record swipe to backend (fire-and-forget, non-blocking)
+        if (tripId && activeCandidate) {
+            const swipeDirection = direction === 'right' ? 'like' : 'dislike';
+            TripsService.recordSwipe(
+                tripId as string,
+                activeCandidate,
+                swipeDirection
+            );
         }
 
         setCurrentIndex(prev => prev + 1);
@@ -138,10 +173,20 @@ export default function SwipeScreen() {
 
                 {/* Header */}
                 <View className="px-6 py-4 flex-row justify-between items-center">
-                    <View>
-                        <Text className="text-white text-2xl font-bold">Discover</Text>
-                        <Text className="text-neutral-400">Swipe to curate your trip</Text>
+                    {/* Left: Back Button + Title */}
+                    <View className="flex-row items-center">
+                        <TouchableOpacity
+                            onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/trips')}
+                            className="bg-white/10 w-10 h-10 rounded-full items-center justify-center mr-3"
+                        >
+                            <ChevronLeft color="white" size={22} />
+                        </TouchableOpacity>
+                        <View>
+                            <Text className="text-white text-2xl font-bold">Discover</Text>
+                            <Text className="text-neutral-400">Swipe to curate your trip</Text>
+                        </View>
                     </View>
+                    {/* Right: Progress Counter */}
                     <View className="bg-white/10 px-4 py-2 rounded-full">
                         <Text className="text-white font-bold">{currentIndex + 1} / {candidates.length}</Text>
                     </View>

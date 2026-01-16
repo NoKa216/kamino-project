@@ -1,11 +1,21 @@
+/**
+ * My Trips Screen - Production Ready
+ * 
+ * Features:
+ * - Fixed data rendering (destination at root level)
+ * - Resume trip functionality for planning trips
+ * - Proper navigation to swipe or details based on status
+ */
+
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Calendar, ChevronRight } from 'lucide-react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { TripsService, GeneratedTrip } from '../../services/trips';
 
 export default function TripsScreen() {
+    const router = useRouter();
     const [trips, setTrips] = useState<GeneratedTrip[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -33,6 +43,47 @@ export default function TripsScreen() {
         loadTrips();
     };
 
+    const handleTripPress = (trip: GeneratedTrip) => {
+        if (trip.status === 'planning') {
+            // Extract already-swiped IDs for filtering
+            // NEW SCHEMA: swipedLikeIds/swipedDislikeIds (arrays of strings)
+            // OLD SCHEMA: swipedLikes/swipedDislikes (arrays of objects)
+
+            let likeIds: string[] = [];
+            let dislikeIds: string[] = [];
+
+            // Try new lean schema first
+            if (trip.swipedLikeIds) {
+                likeIds = trip.swipedLikeIds;
+            } else if (trip.swipedLikes) {
+                // Backward compatibility: extract IDs from old object array
+                likeIds = trip.swipedLikes.map((place: any) => place.id);
+            }
+
+            if (trip.swipedDislikeIds) {
+                dislikeIds = trip.swipedDislikeIds;
+            } else if (trip.swipedDislikes) {
+                // Backward compatibility: extract IDs from old object array
+                dislikeIds = trip.swipedDislikes.map((place: any) => place.id);
+            }
+
+            const alreadySwipedIds = [...likeIds, ...dislikeIds];
+
+            // Resume swipe flow with progress filtering
+            router.push({
+                pathname: '/(app)/trip/[id]/swipe',
+                params: {
+                    id: trip.id || trip.tripId || '',
+                    candidates: JSON.stringify(trip.candidates || []),
+                    swipedIds: JSON.stringify(alreadySwipedIds)
+                }
+            });
+        } else {
+            // Navigate to finalized trip details (TODO: implement details screen)
+            console.log('Navigate to trip details:', trip.id || trip.tripId);
+        }
+    };
+
     const renderEmptyState = () => (
         <View className="flex-1 items-center justify-center opacity-50 py-20">
             <View className="w-24 h-24 bg-white/5 rounded-full items-center justify-center mb-6 border border-white/10">
@@ -46,24 +97,40 @@ export default function TripsScreen() {
     );
 
     const renderItem = ({ item }: { item: GeneratedTrip }) => {
-        // Handle trip data structure gracefully (it might vary depending on Gemini output or data structure)
-        // Assuming item.trip.itinerary has title/description
-        const title = item.trip?.itinerary?.title || item.trip?.destination || "Trip";
-        const subtitle = item.trip?.itinerary?.description || `${item.trip?.destination}`;
+        // FIXED: Read from root level (not nested)
+        const destination = item.destination || 'Unknown Destination';
+        const startDate = item.startDate;
+        const status = item.status || 'planning';
+        const candidateCount = item.candidates?.length || 0;
 
         return (
-            <TouchableOpacity className="bg-neutral-900 rounded-2xl mb-4 p-4 border border-white/10 active:bg-neutral-800">
+            <TouchableOpacity
+                onPress={() => handleTripPress(item)}
+                className="bg-neutral-900 rounded-2xl mb-4 p-4 border border-white/10 active:bg-neutral-800"
+            >
                 <View className="flex-row justify-between items-start">
                     <View className="flex-1 mr-4">
-                        <Text className="text-white text-lg font-bold mb-1">{title}</Text>
-                        <Text className="text-neutral-400 text-sm mb-3" numberOfLines={2}>{subtitle}</Text>
+                        <Text className="text-white text-lg font-bold mb-1">{destination}</Text>
+                        <Text className="text-neutral-400 text-sm mb-3" numberOfLines={2}>
+                            {status === 'planning'
+                                ? `${candidateCount} places to explore • Tap to continue`
+                                : 'View your itinerary'}
+                        </Text>
 
                         <View className="flex-row items-center space-x-4">
-                            {item.trip?.startDate && (
+                            {startDate && (
                                 <View className="flex-row items-center bg-white/5 px-2 py-1 rounded-md">
                                     <Calendar size={12} color="#A78BFA" style={{ marginRight: 6 }} />
                                     <Text className="text-neutral-400 text-xs">
-                                        {new Date(item.trip.startDate).toLocaleDateString()}
+                                        {new Date(startDate).toLocaleDateString()}
+                                    </Text>
+                                </View>
+                            )}
+
+                            {status === 'planning' && (
+                                <View className="bg-kamino-violet/20 px-2 py-1 rounded-md">
+                                    <Text className="text-kamino-violet text-xs font-bold uppercase">
+                                        In Progress
                                     </Text>
                                 </View>
                             )}
@@ -83,7 +150,7 @@ export default function TripsScreen() {
                 <FlatList
                     data={trips}
                     renderItem={renderItem}
-                    keyExtractor={(item) => item.tripId}
+                    keyExtractor={(item, index) => item.id || item.tripId || `trip-${index}`}
                     contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
                     ListEmptyComponent={!loading ? renderEmptyState : null}
                     refreshControl={

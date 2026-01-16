@@ -32,7 +32,8 @@ export interface PlaceCandidate {
     location?: string;       // Formatted address from Google
 
     // Media
-    photos?: string[];       // Array of photo URLs (signed/secure)
+    photos?: string[];       // Array of photo URLs (signed/secure) - DEPRECATED
+    photoRefs?: string[];    // Photo references (not full URLs) - NEW SECURE METHOD
     staticMapUrl?: string | null;   // Digitally signed Static Maps API URL
 
     // Social proof

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, StatusBar, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useCallback } from 'react';
+import { View, StatusBar, ScrollView, RefreshControl, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { TripsService, GeneratedTrip } from '../../services/trips';
 
 // Import UI Components
 import { ExploreHeader } from '../../components/explore/ExploreHeader';
@@ -16,57 +18,119 @@ import {
     RELAXATION_DESTINATIONS
 } from '../../constants/destinations';
 
+// Brand Color Constant
+const BRAND_COLOR = '#8B5CF6';
+
 export default function ExploreScreen() {
     const { user } = useAuth();
+    const insets = useSafeAreaInsets();
 
-    // --- SIMULATION STATE ---
-    // Set to null to view the "No Trip" state with the slideshow.
-    // Set to an object (e.g., { destination: 'Paris' }) to view the upcoming trip card.
-    const [upcomingTrip, setUpcomingTrip] = useState<any>(null);
+    // 1. Initialize State
+    const cachedTrip = TripsService.getCachedUpcomingTrip();
+    const [upcomingTrip, setUpcomingTrip] = useState<GeneratedTrip | null>(cachedTrip);
+
+    // 2. Loading / Refreshing states
+    const [isLoading, setIsLoading] = useState(!cachedTrip);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadData = useCallback(async (forceRefresh = false) => {
+        try {
+            if (!TripsService.hasCachedData() && !forceRefresh) {
+                setIsLoading(true);
+            }
+
+            await TripsService.getUserTrips(forceRefresh);
+            const bestTrip = TripsService.getCachedUpcomingTrip();
+            setUpcomingTrip(bestTrip);
+
+        } catch (error) {
+            console.error('[Explore] Failed to load data:', error);
+        } finally {
+            setIsLoading(false);
+            if (!refreshing) setIsLoading(false);
+        }
+    }, [refreshing]);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadData(false);
+        }, [loadData])
+    );
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        // UX Delay to ensure spinner is visible
+        await Promise.all([
+            loadData(true),
+            new Promise(resolve => setTimeout(resolve, 1500))
+        ]);
+        setRefreshing(false);
+    }, [loadData]);
 
     return (
         <View className="flex-1 bg-[#050505]">
             <StatusBar barStyle="light-content" />
-            <SafeAreaView className="flex-1">
-                <ScrollView
-                    className="flex-1"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 120 }} // Extra padding to account for the bottom tab bar
-                >
-                    {/* 1. Header (Greeting + User Avatar) */}
-                    <ExploreHeader user={user} />
 
-                    {/* 2. Search Bar */}
-                    <SearchBar />
+            <ScrollView
+                className="flex-1"
+                showsVerticalScrollIndicator={false}
 
-                    {/* 3. Hero Card (Displays Upcoming Trip OR Inspiration Slideshow) */}
-                    <HeroTripCard trip={upcomingTrip} />
+                // --- The Magic Fix for iOS Notch & Spinner ---
+                // מגדיר ל-iOS שהתוכן מתחיל מתחת ל-Notch, אבל הגלילה היא על כל המסך
+                contentInset={{ top: insets.top }}
+                contentOffset={{ x: 0, y: -insets.top }} // מציב את הגלילה ההתחלתית בנקודה הנכונה
 
-                    {/* 4. Thematic Categories (Carousels) */}
+                // Android padding handling
+                contentContainerStyle={{
+                    paddingTop: Platform.OS === 'android' ? insets.top + 10 : 0,
+                    paddingBottom: 120
+                }}
 
-                    {/* Category 1: Romantic */}
-                    <CategorySection
-                        title="Romantic Getaways"
-                        subtitle="Perfect spots to strengthen your bond"
-                        data={ROMANTIC_DESTINATIONS}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+
+                        // iOS Styles - Hardcoded HEX is safest
+                        tintColor="#8B5CF6"
+                        style={{ backgroundColor: 'transparent' }} // Fix for some iOS rendering glitches
+
+                        // Android Styles
+                        colors={['#8B5CF6']}
+                        progressBackgroundColor="#1F1F1F"
+                        progressViewOffset={Platform.OS === 'android' ? insets.top + 10 : 0}
                     />
+                }
+            >
+                {/* 1. Header */}
+                <ExploreHeader user={user} />
 
-                    {/* Category 2: Affordable Luxury */}
-                    <CategorySection
-                        title="Affordable Luxury"
-                        subtitle="Feel like a millionaire for less"
-                        data={AFFORDABLE_LUXURY_DESTINATIONS}
-                    />
+                {/* 2. Search Bar */}
+                <SearchBar />
 
-                    {/* Category 3: Relaxation */}
-                    <CategorySection
-                        title="Pure Relaxation"
-                        subtitle="Disconnect and recharge"
-                        data={RELAXATION_DESTINATIONS}
-                    />
+                {/* 3. Hero Card */}
+                <HeroTripCard trip={upcomingTrip} isLoading={isLoading} />
 
-                </ScrollView>
-            </SafeAreaView>
+                {/* 4. Thematic Categories */}
+                <CategorySection
+                    title="Romantic Getaways"
+                    subtitle="Perfect spots to strengthen your bond"
+                    data={ROMANTIC_DESTINATIONS}
+                />
+
+                <CategorySection
+                    title="Affordable Luxury"
+                    subtitle="Feel like a millionaire for less"
+                    data={AFFORDABLE_LUXURY_DESTINATIONS}
+                />
+
+                <CategorySection
+                    title="Pure Relaxation"
+                    subtitle="Disconnect and recharge"
+                    data={RELAXATION_DESTINATIONS}
+                />
+
+            </ScrollView>
         </View>
     );
 }

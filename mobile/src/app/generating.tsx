@@ -37,6 +37,14 @@ export default function GeneratingScreen() {
                 const interestsList = JSON.parse(params.interests as string || '[]');
                 const mustHavesList = JSON.parse(params.mustHaves as string || '[]');
 
+                // Parse logistics data
+                let logisticsData = undefined;
+                try {
+                    logisticsData = JSON.parse(params.logistics as string || 'null');
+                } catch (e) {
+                    console.error('Error parsing logistics:', e);
+                }
+
                 // Merge interests and mustHaves for the AI prompt context
                 // UPDATE: Sent separately now for service to handle exclusion vs inclusion context
                 const allInterests = [...interestsList]; // Just interests
@@ -48,12 +56,16 @@ export default function GeneratingScreen() {
                     travelers: params.group as string,
                     budget: params.budget as string,
                     interests: allInterests,
-                    mustHaveItems: mustHavesList // Send explicitly
+                    mustHaveItems: mustHavesList, // Send explicitly
+                    logistics: logisticsData       // NEW: Pass logistics data
                 };
 
                 // Call API
                 const result = await TripsService.generateTrip(tripData);
                 console.log("Trip Candidates Generated:", result);
+
+                // Invalidate cache so HomeScreen fetches fresh data on next focus
+                TripsService.invalidateCache();
 
                 // --- FIX: Navigate to Swipe Screen ---
                 if (result.success && result.candidates) {
@@ -78,7 +90,7 @@ export default function GeneratingScreen() {
                         router.push({
                             pathname: '/(app)/trip/[id]/swipe',
                             params: {
-                                id: result.tripId,
+                                id: result.tripId || result.id || '',
                                 candidates: JSON.stringify(result.candidates)
                             }
                         });

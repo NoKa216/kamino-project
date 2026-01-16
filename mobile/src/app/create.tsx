@@ -8,24 +8,28 @@ import * as Haptics from 'expo-haptics';
 // --- Imports ---
 import { TripProgressBar } from '../components/ui/TripProgressBar';
 import { StepOne } from '../components/create-trip/StepOne';
+import { LogisticsStep } from '../components/create-trip/LogisticsStep';
 import { StepCompanions } from '../components/create-trip/StepCompanions';
 import { StepInterests } from '../components/create-trip/StepInterests';
 import { StepBudget } from '../components/create-trip/StepBudget';
 import { StepWishes } from '../components/create-trip/StepWishes';
+import { TripGenerationData } from '../services/trips';
 
-const STEPS_COUNT = 5;
+const STEPS_COUNT = 6;
 
 export default function CreateTripScreen() {
     const router = useRouter();
     const { initialDestination } = useLocalSearchParams();
 
-    // --- STATE ---
-    // תיקון: מתחילים משלב 1
     const [step, setStep] = useState(1);
 
     const [tripData, setTripData] = useState({
         destination: '',
         dates: { start: null as Date | null, end: null as Date | null },
+        logistics: {
+            hasBookedFlights: false,
+            hasBookedAccommodation: false
+        } as NonNullable<TripGenerationData['logistics']>,
         group: '',
         interests: [] as string[],
         budget: '',
@@ -41,9 +45,28 @@ export default function CreateTripScreen() {
     const canProceed = () => {
         switch (step) {
             case 1: return !!tripData.destination && !!tripData.dates.start && !!tripData.dates.end;
-            case 2: return !!tripData.group;
-            case 3: return tripData.interests.length > 0;
-            case 4: return !!tripData.budget;
+            case 2: {
+                // Logistics Validation: If toggle is ON, data must be provided
+                const { logistics } = tripData;
+
+                // If flights toggle is on, both times must be set
+                if (logistics.hasBookedFlights) {
+                    const hasArrival = !!logistics.flightDetails?.arrivalTime?.trim();
+                    const hasDeparture = !!logistics.flightDetails?.departureTime?.trim();
+                    if (!hasArrival || !hasDeparture) return false;
+                }
+
+                // If accommodation toggle is on, hotel name must be set
+                if (logistics.hasBookedAccommodation) {
+                    const hasHotel = !!logistics.accommodationDetails?.hotelName?.trim();
+                    if (!hasHotel) return false;
+                }
+
+                return true;
+            }
+            case 3: return !!tripData.group;
+            case 4: return tripData.interests.length > 0;
+            case 5: return !!tripData.budget;
             default: return true;
         }
     };
@@ -70,6 +93,7 @@ export default function CreateTripScreen() {
             params: {
                 destination: tripData.destination,
                 dates: JSON.stringify(tripData.dates),
+                logistics: JSON.stringify(tripData.logistics),
                 group: tripData.group,
                 interests: JSON.stringify(tripData.interests),
                 budget: tripData.budget,
@@ -119,24 +143,30 @@ export default function CreateTripScreen() {
                             />
                         )}
                         {step === 2 && (
+                            <LogisticsStep
+                                logistics={tripData.logistics}
+                                setLogistics={(l) => setTripData({ ...tripData, logistics: l })}
+                            />
+                        )}
+                        {step === 3 && (
                             <StepCompanions
                                 selectedGroup={tripData.group}
                                 setGroup={(g) => setTripData({ ...tripData, group: g })}
                             />
                         )}
-                        {step === 3 && (
+                        {step === 4 && (
                             <StepInterests
                                 selectedInterests={tripData.interests}
                                 setInterests={(i) => setTripData({ ...tripData, interests: i })}
                             />
                         )}
-                        {step === 4 && (
+                        {step === 5 && (
                             <StepBudget
                                 selectedBudget={tripData.budget}
                                 setBudget={(b) => setTripData({ ...tripData, budget: b })}
                             />
                         )}
-                        {step === 5 && (
+                        {step === 6 && (
                             <StepWishes
                                 mustHaves={tripData.mustHaves}
                                 setMustHaves={(m) => setTripData({ ...tripData, mustHaves: m })}

@@ -27,12 +27,11 @@ interface SwipeableCardProps {
 }
 
 export const SwipeableCard = memo<SwipeableCardProps>(({ candidate, onDetailsPress }) => {
-    const { photoIndex, handleNextPhoto, handlePrevPhoto } = useSwipeCard(candidate);
+    const { photoIndex, photoUrls, handleNextPhoto, handlePrevPhoto } = useSwipeCard(candidate);
 
-    const photos = candidate.photos && candidate.photos.length > 0 ? candidate.photos : [];
-    const hasPhotos = photos.length > 0;
-    const hasMultiplePhotos = photos.length > 1;
-    const imageSource = hasPhotos ? { uri: photos[photoIndex] } : { uri: DEFAULT_PLACE_IMAGE };
+    const hasPhotos = photoUrls.length > 0;
+    const hasMultiplePhotos = photoUrls.length > 1;
+    const imageSource = hasPhotos ? { uri: photoUrls[photoIndex] } : { uri: DEFAULT_PLACE_IMAGE };
 
     const ratingDisplay = useMemo(() =>
         candidate.rating
@@ -52,7 +51,7 @@ export const SwipeableCard = memo<SwipeableCardProps>(({ candidate, onDetailsPre
                     <Pressable className="w-[30%] h-full" onPress={handleNextPhoto} />
                 </View>
 
-                <PhotoProgressBars photos={photos} photoIndex={photoIndex} visible={hasMultiplePhotos} />
+                <PhotoProgressBars totalPhotos={photoUrls.length} currentIndex={photoIndex} />
                 <MatchBadge text={candidate.matchTag || `Perfect for ${candidate.suggestedCategory}`} />
 
                 <BottomInfoPanel
