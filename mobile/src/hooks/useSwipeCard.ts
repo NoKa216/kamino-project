@@ -20,7 +20,8 @@ export function useSwipeCard(candidate: PlaceCandidate) {
     const photoUrls = useMemo(() => {
         // Prefer photoRefs (new secure method), fallback to photos (legacy)
         if (candidate.photoRefs && candidate.photoRefs.length > 0) {
-            return getPhotoUrls(candidate.photoRefs);
+            // Use 600px width for optimal mobile card performance
+            return getPhotoUrls(candidate.photoRefs, 600);
         }
         return candidate.photos || [];
     }, [candidate.photoRefs, candidate.photos]);

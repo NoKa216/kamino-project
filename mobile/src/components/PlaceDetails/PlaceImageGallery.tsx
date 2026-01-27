@@ -5,13 +5,15 @@
  * - Display current photo with fullscreen support
  * - Show progress bars for multiple photos
  * - Handle tap zones for navigation
+ * 
+ * Uses KaminoImage for optimized caching and consistent transitions.
  */
 
 import React, { memo } from 'react';
-import { View, Pressable, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
+import { View, Pressable, TouchableOpacity, StyleSheet } from 'react-native';
 import { X, Maximize2 } from 'lucide-react-native';
 import { DEFAULT_PLACE_IMAGE } from '../../constants/defaults';
+import { KaminoImage } from '../ui/KaminoImage';
 
 interface PlaceImageGalleryProps {
     currentPhoto: string | undefined;
@@ -37,11 +39,10 @@ export const PlaceImageGallery = memo<PlaceImageGalleryProps>(({
 
     return (
         <View className="w-full h-80 relative bg-neutral-900">
-            <Image
-                source={{ uri: imageUri }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="cover"
-                transition={200}
+            <KaminoImage
+                source={imageUri}
+                style={styles.image}
+                priority="high"
             />
             <View className="absolute bottom-0 w-full h-32 bg-gradient-to-t from-[#121212] to-transparent" />
 
@@ -85,3 +86,10 @@ export const PlaceImageGallery = memo<PlaceImageGalleryProps>(({
 });
 
 PlaceImageGallery.displayName = 'PlaceImageGallery';
+
+const styles = StyleSheet.create({
+    image: {
+        width: '100%',
+        height: '100%',
+    },
+});

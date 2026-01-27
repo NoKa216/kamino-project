@@ -1,20 +1,33 @@
 /**
- * Trips Controller - Production Ready
+ * Trips Controller
  * 
- * Handles trip generation, swipe persistence, and trip retrieval
- * All endpoints verify user ownership
+ * Responsibility: HTTP API interface layer.
+ * This controller is a "dumb" layer that ONLY handles:
+ * - Input validation (Zod)
+ * - User ID extraction from auth
+ * - Calling business logic service
+ * - Mapping errors to HTTP status codes
+ * 
+ * All business logic resides in TripsService.
+ * 
+ * @module controllers/trips
  */
 
 import { Request, Response } from 'express';
-import { db } from '../config/firebase';
 import { z } from 'zod';
-import { PlaceDiscoveryOrchestrator } from '../services/placeDiscovery.orchestrator';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { applyLogisticsFilters, LogisticsInput } from '../utils/logisticsFilter.util';
-import { getCuratedImage } from '../utils/destinationImages.util';
-import * as admin from 'firebase-admin';
+import {
+    TripsService,
+    TripNotFoundError,
+    ForbiddenError,
+    ValidationError
+} from '../services/trips.service';
+import { LogisticsInput } from '../utils/logisticsFilter.util';
 
-// Input validation schemas
+// ============================================================================
+// INPUT VALIDATION SCHEMAS
+// ============================================================================
+
 const TripRequestSchema = z.object({
     destination: z.string().min(1),
     startDate: z.string(),
@@ -23,7 +36,6 @@ const TripRequestSchema = z.object({
     budget: z.string().optional(),
     interests: z.array(z.string()).optional(),
     mustHaveItems: z.array(z.string()).optional(),
-    // Logistics data for smart schedule generation
     logistics: z.object({
         hasBookedFlights: z.boolean().optional(),
         flightDetails: z.object({
@@ -43,142 +55,111 @@ const SwipeSchema = z.object({
     place: z.object({
         id: z.string(),
         name: z.string(),
-    }).passthrough(), // Allow additional fields
+        suggestedCategory: z.string().optional()
+    }).passthrough(),
     direction: z.enum(['like', 'dislike'])
 });
 
+// ============================================================================
+// ERROR HANDLER
+// ============================================================================
+
 /**
- * Generate trip with AI-powered place recommendations
+ * Maps service errors to HTTP responses.
+ */
+function handleServiceError(error: unknown, res: Response): void {
+    if (error instanceof TripNotFoundError) {
+        res.status(404).json({ error: 'Trip not found' });
+        return;
+    }
+
+    if (error instanceof ForbiddenError) {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+    }
+
+    if (error instanceof ValidationError) {
+        res.status(400).json({ error: error.message });
+        return;
+    }
+
+    if (error instanceof z.ZodError) {
+        res.status(400).json({ error: 'Invalid request data', details: error.errors });
+        return;
+    }
+
+    console.error('[TripsController] Unhandled error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+}
+
+// ============================================================================
+// ROUTE HANDLERS
+// ============================================================================
+
+/**
+ * POST /trips/generate
+ * Creates a new trip with AI-generated place candidates.
  */
 export const generateTripCandidates = async (req: Request, res: Response): Promise<void> => {
     try {
         const validatedData = TripRequestSchema.parse(req.body);
-        const { destination, startDate, endDate, travelers, budget, interests, mustHaveItems, logistics } = validatedData;
-
-        // Get authenticated user
         const userId = (req as AuthenticatedRequest).user.uid;
 
-        // Step 1: Generate raw candidates from AI
-        const rawCandidates = await PlaceDiscoveryOrchestrator.generateCandidates({
-            destination,
-            startDate,
-            endDate,
-            interests: interests || [],
-            budget,
-            travelers,
-            mustHaveItems
-        });
-
-        // Step 2: Apply logistics-aware filters (arrival/departure time, accommodation)
-        const { candidates, scheduleNotes } = applyLogisticsFilters(
-            rawCandidates,
-            logistics as LogisticsInput | undefined
-        );
-
-        if (scheduleNotes.length > 0) {
-            console.log(`[Trips] Schedule adjusted: ${scheduleNotes.join(', ')}`);
-        }
-
-        // Step 3: Get hero image (curated first, then first candidate's photo)
-        const heroImage = getCuratedImage(destination) || undefined;
-
-        // Save to Firestore with proper structure
-        const tripData = {
+        const result = await TripsService.createTrip({
             userId,
-            status: 'planning',
-            destination,        // CRITICAL: At root level for list view
-            startDate,          // CRITICAL: At root level
-            endDate,            // CRITICAL: At root level
-            heroImage,          // Curated destination image (if available)
-            travelers,
-            budget,
-            interests,
-            logistics,          // Store logistics for reference
-            candidates,
-            scheduleNotes,      // Store generated notes for UI
-            swipedLikeIds: [],      // LEAN: Store IDs only
-            swipedDislikeIds: [],   // LEAN: Store IDs only
-            createdAt: new Date().toISOString()
-        };
-
-        const docRef = await db.collection('trips').add(tripData);
+            destination: validatedData.destination,
+            startDate: validatedData.startDate,
+            endDate: validatedData.endDate,
+            travelers: validatedData.travelers,
+            budget: validatedData.budget,
+            interests: validatedData.interests,
+            mustHaveItems: validatedData.mustHaveItems,
+            logistics: validatedData.logistics as LogisticsInput | undefined
+        });
 
         res.json({
             success: true,
-            tripId: docRef.id,
-            candidates,
-            scheduleNotes       // Return notes to frontend
+            tripId: result.tripId,
+            candidates: result.candidates,
+            scheduleNotes: result.scheduleNotes
         });
     } catch (error) {
-        console.error('Error generating candidates:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        handleServiceError(error, res);
     }
 };
 
 /**
- * Get all trips for authenticated user
+ * GET /trips
+ * Returns all trips for the authenticated user.
  */
 export const getUserTrips = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as AuthenticatedRequest).user.uid;
-
-        const snapshot = await db
-            .collection('trips')
-            .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
-            .get();
-
-        const trips = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
+        const trips = await TripsService.getUserTrips(userId);
         res.json(trips);
     } catch (error) {
-        console.error('Error fetching trips:', error);
-        res.status(500).json({ error: 'Internal Server Error fetching trips' });
+        handleServiceError(error, res);
     }
 };
 
 /**
- * Get a single trip by ID (for resume functionality)
+ * GET /trips/:tripId
+ * Returns a single trip by ID.
  */
 export const getTripById = async (req: Request, res: Response): Promise<void> => {
     try {
         const { tripId } = req.params;
         const userId = (req as AuthenticatedRequest).user.uid;
-
-        const doc = await db.collection('trips').doc(tripId).get();
-
-        if (!doc.exists) {
-            res.status(404).json({ error: 'Trip not found' });
-            return;
-        }
-
-        const tripData = doc.data();
-
-        // Verify ownership
-        if (tripData?.userId !== userId) {
-            res.status(403).json({ error: 'Forbidden: You do not own this trip' });
-            return;
-        }
-
-        res.json({
-            id: doc.id,
-            ...tripData
-        });
+        const trip = await TripsService.getTripById(tripId, userId);
+        res.json(trip);
     } catch (error) {
-        console.error('Error fetching trip:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        handleServiceError(error, res);
     }
 };
 
 /**
- * Record swipe action (like/dislike) for learning
- * 
- * Dual-write pattern:
- * 1. Analytics: Write to user_interactions collection for ML
- * 2. UI Sync: Update trips document with lean ID-only storage
+ * POST /trips/:tripId/swipe
+ * Records a swipe action (like/dislike) for a place.
  */
 export const swipePlace = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -186,52 +167,37 @@ export const swipePlace = async (req: Request, res: Response): Promise<void> => 
         const userId = (req as AuthenticatedRequest).user.uid;
         const { place, direction } = SwipeSchema.parse(req.body);
 
-        // Verify ownership first
-        const tripRef = db.collection('trips').doc(tripId);
-        const tripDoc = await tripRef.get();
-
-        if (!tripDoc.exists) {
-            res.status(404).json({ error: 'Trip not found' });
-            return;
-        }
-
-        const tripData = tripDoc.data();
-        if (tripData?.userId !== userId) {
-            res.status(403).json({ error: 'Forbidden' });
-            return;
-        }
-
-        // ATOMIC BATCH WRITE - Analytics + UI sync in single transaction
-        const batch = db.batch();
-
-        // Action 1: ANALYTICS - Write to user_interactions collection
-        const analyticsRef = db.collection('user_interactions').doc();
-        batch.set(analyticsRef, {
+        await TripsService.recordSwipe({
             userId,
             tripId,
-            placeId: place.id,
-            action: direction,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            metadata: {
-                category: place.suggestedCategory || 'unknown',
-                city: tripData.destination || 'unknown',
-                placeName: place.name,
-            }
+            place,
+            direction
         });
-
-        // Action 2: UI SYNC - Update trips document with LEAN storage (IDs only)
-        const fieldName = direction === 'like' ? 'swipedLikeIds' : 'swipedDislikeIds';
-        batch.update(tripRef, {
-            [fieldName]: admin.firestore.FieldValue.arrayUnion(place.id)
-        });
-
-        // Commit both writes atomically
-        await batch.commit();
-        console.log(`[Swipe] Recorded ${direction} for ${place.name} (atomic batch)`);
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Error recording swipe:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        handleServiceError(error, res);
+    }
+};
+
+/**
+ * POST /trips/:tripId/build-itinerary
+ * Generates an AI-powered itinerary from liked places.
+ */
+export const buildItinerary = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { tripId } = req.params;
+        const userId = (req as AuthenticatedRequest).user.uid;
+
+        const result = await TripsService.generateItinerary(tripId, userId);
+
+        res.json({
+            success: true,
+            itinerary: result.itinerary,
+            likedPlacesCount: result.likedPlacesCount,
+            tripContext: result.tripContext
+        });
+    } catch (error) {
+        handleServiceError(error, res);
     }
 };

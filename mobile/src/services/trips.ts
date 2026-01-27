@@ -186,5 +186,22 @@ export const TripsService = {
             // Silently fail - swipe persistence is not critical for UX
             console.warn('[Swipe] Error:', error);
         }
+    },
+
+    /**
+     * Build itinerary from liked places using AI
+     * Calls the backend which triggers Gemini AI to generate a day-by-day schedule
+     */
+    buildItinerary: async (tripId: string, token?: string): Promise<any> => {
+        try {
+            console.log('[TripsService] Building itinerary for trip:', tripId);
+            const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+            const response = await api.post(`/trips/${tripId}/build-itinerary`, {}, config);
+            console.log('[TripsService] Itinerary built successfully:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('[TripsService] Error building itinerary:', error);
+            throw error;
+        }
     }
 };

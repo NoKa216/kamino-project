@@ -1,162 +1,77 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Pressable, Dimensions, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+/**
+ * Swipe Screen - View Layer (MVVM Pattern)
+ * 
+ * Pure UI component that renders based on controller state.
+ * All business logic is extracted to useSwipeScreenController.
+ */
+
+import React from 'react';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Heart, Info, ArrowRight, ChevronLeft } from 'lucide-react-native';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withSpring,
-    runOnJS,
-    interpolate,
-    Extrapolation
-} from 'react-native-reanimated';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { Heart, ArrowRight, ChevronLeft } from 'lucide-react-native';
 
-import { SwipeableCard } from '../../../../components/discovery/SwipeableCard';
+import { CardStack } from '../../../../components/discovery/CardStack';
 import PlaceDetailsModal from '../../../../components/PlaceDetailsModal';
-import { TripsService } from '../../../../services/trips';
-import { PlaceCandidate } from '../../../../types/place.types';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
+import { useSwipeScreenController } from '../../../../features/discovery/hooks/useSwipeScreenController';
+import { Loader } from '../../../../components/ui/Loader';
 
 export default function SwipeScreen() {
-    const router = useRouter();
-    const { id: tripId, candidates: candidatesParam, swipedIds: swipedIdsParam } = useLocalSearchParams();
+    // Controller provides all state and actions
+    const {
+        unswipedCandidates,
+        likedCount,
+        isLoading,
+        isComplete,
+        isBuilding,
+        selectedPlace,
+        handleSwipe,
+        handleDetailsPress,
+        handleCloseDetails,
+        handleComplete,
+        handleBuildItinerary,
+        goBack,
+    } = useSwipeScreenController();
 
-    // Parse initial candidates and swiped IDs with useMemo (prevents re-parsing on every render)
-    const unswipedCandidates = useMemo(() => {
-        if (!candidatesParam) return [];
+    // Loading state
+    if (isLoading) {
+        return <Loader />;
+    }
 
-        try {
-            const allCandidates = JSON.parse(candidatesParam as string);
-
-            // Parse already-swiped IDs for filtering
-            let swipedIds: string[] = [];
-            if (swipedIdsParam) {
-                try {
-                    swipedIds = JSON.parse(swipedIdsParam as string);
-                } catch (e) {
-                    console.warn('[Swipe] Failed to parse swipedIds:', e);
-                }
-            }
-
-            // Filter out already-swiped candidates
-            const validCandidates = Array.isArray(allCandidates)
-                ? allCandidates.filter((c: PlaceCandidate) => !swipedIds.includes(c.id))
-                : [];
-
-            console.log(`[Swipe] Total: ${allCandidates.length}, Swiped: ${swipedIds.length}, Remaining: ${validCandidates.length}`);
-            return validCandidates;
-        } catch (e) {
-            console.error('[Swipe] Failed to parse candidates:', e);
-            return [];
-        }
-    }, [candidatesParam, swipedIdsParam]);
-
-    // Use unswiped candidates directly (no intermediate state needed)
-    const candidates = unswipedCandidates;
-    const [selectedPlace, setSelectedPlace] = useState<PlaceCandidate | null>(null);
-
-    const [likedPlaces, setLikedPlaces] = useState<PlaceCandidate[]>([]);
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    const activeCandidate = candidates[currentIndex];
-
-    // Animation Values
-    const translateX = useSharedValue(0);
-    const rotate = useSharedValue(0);
-
-    const handleSwipeComplete = (direction: 'left' | 'right') => {
-        // Update UI state immediately
-        if (direction === 'right') {
-            setLikedPlaces(prev => [...prev, activeCandidate]);
-        }
-
-        // Record swipe to backend (fire-and-forget, non-blocking)
-        if (tripId && activeCandidate) {
-            const swipeDirection = direction === 'right' ? 'like' : 'dislike';
-            TripsService.recordSwipe(
-                tripId as string,
-                activeCandidate,
-                swipeDirection
-            );
-        }
-
-        setCurrentIndex(prev => prev + 1);
-        translateX.value = 0;
-        rotate.value = 0;
-    };
-
-    const pan = Gesture.Pan()
-        .onUpdate((event) => {
-            translateX.value = event.translationX;
-            rotate.value = interpolate(
-                event.translationX,
-                [-SCREEN_WIDTH / 2, SCREEN_WIDTH / 2],
-                [-15, 15],
-                Extrapolation.CLAMP
-            );
-        })
-        .onEnd((event) => {
-            if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
-                const direction = event.translationX > 0 ? 'right' : 'left';
-                translateX.value = withSpring(direction === 'right' ? SCREEN_WIDTH + 100 : -SCREEN_WIDTH - 100, {}, () => {
-                    runOnJS(handleSwipeComplete)(direction);
-                });
-            } else {
-                translateX.value = withSpring(0);
-                rotate.value = withSpring(0);
-            }
-        });
-
-    const cardStyle = useAnimatedStyle(() => ({
-        transform: [
-            { translateX: translateX.value },
-            { rotate: `${rotate.value}deg` }
-        ]
-    }));
-
-    // Overlay opacities
-    const likeOpacity = useAnimatedStyle(() => ({
-        opacity: interpolate(translateX.value, [0, SCREEN_WIDTH / 4], [0, 1])
-    }));
-
-    const nopeOpacity = useAnimatedStyle(() => ({
-        opacity: interpolate(translateX.value, [-SCREEN_WIDTH / 4, 0], [1, 0])
-    }));
-
-    const buildItinerary = () => {
-        // TODO: Send likedPlaces to backend to finalize itinerary
-        console.log("Building itinerary with likes:", likedPlaces.length);
-        alert("Building itinerary with " + likedPlaces.length + " places! (Feature pending)");
-        router.replace('/(app)/trips');
-    };
-
-    if (!candidates.length) {
+    // No candidates
+    if (!unswipedCandidates.length && !isComplete) {
         return (
             <View className="flex-1 bg-black items-center justify-center">
-                <Text className="text-white">Loading candidates...</Text>
+                <Text className="text-white">No places to discover</Text>
             </View>
         );
     }
 
-    if (currentIndex >= candidates.length) {
+    // Complete state
+    if (isComplete) {
         return (
             <View className="flex-1 bg-black items-center justify-center px-6">
                 <Heart size={64} color="#A78BFA" fill="#A78BFA" />
                 <Text className="text-white text-3xl font-bold mt-8 text-center">All Caught Up!</Text>
                 <Text className="text-neutral-400 text-center mt-4 mb-8">
-                    You've liked {likedPlaces.length} places. Ready to build your itinerary?
+                    You've liked {likedCount} places. Ready to build your itinerary?
                 </Text>
 
                 <Pressable
-                    onPress={buildItinerary}
-                    className="w-full bg-kamino-violet py-4 rounded-full items-center flex-row justify-center active:opacity-80"
+                    onPress={handleBuildItinerary}
+                    disabled={isBuilding}
+                    className={`w-full bg-kamino-violet py-4 rounded-full items-center flex-row justify-center ${isBuilding ? 'opacity-50' : 'active:opacity-80'}`}
                 >
-                    <Text className="text-white font-bold text-lg mr-2">Build Itinerary</Text>
-                    <ArrowRight size={20} color="white" />
+                    {isBuilding ? (
+                        <>
+                            <ActivityIndicator color="white" size="small" />
+                            <Text className="text-white font-bold text-lg ml-2">Building with AI...</Text>
+                        </>
+                    ) : (
+                        <>
+                            <Text className="text-white font-bold text-lg mr-2">Build Itinerary</Text>
+                            <ArrowRight size={20} color="white" />
+                        </>
+                    )}
                 </Pressable>
             </View>
         );
@@ -168,10 +83,9 @@ export default function SwipeScreen() {
 
                 {/* Header */}
                 <View className="px-6 py-4 flex-row justify-between items-center">
-                    {/* Left: Back Button + Title */}
                     <View className="flex-row items-center">
                         <TouchableOpacity
-                            onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/trips')}
+                            onPress={goBack}
                             className="bg-white/10 w-10 h-10 rounded-full items-center justify-center mr-3"
                         >
                             <ChevronLeft color="white" size={22} />
@@ -181,44 +95,19 @@ export default function SwipeScreen() {
                             <Text className="text-neutral-400">Swipe to curate your trip</Text>
                         </View>
                     </View>
-                    {/* Right: Progress Counter */}
                     <View className="bg-white/10 px-4 py-2 rounded-full">
-                        <Text className="text-white font-bold">{currentIndex + 1} / {candidates.length}</Text>
+                        <Text className="text-white font-bold">{unswipedCandidates.length} left</Text>
                     </View>
                 </View>
 
-                {/* Cards Container - FULL SCREEN IMMERSIVE */}
-                <View className="flex-1 items-center justify-center pt-2 pb-6">
-                    {/* Background Card (Next One) */}
-                    {currentIndex + 1 < candidates.length && (
-                        <View className="absolute w-full h-full px-1 rounded-[32px] opacity-100 scale-[0.98] z-0">
-                            <SwipeableCard candidate={candidates[currentIndex + 1]} />
-                            <View className="absolute inset-0 mx-1 bg-black/50 rounded-[32px]" />
-                        </View>
-                    )}
-
-                    <GestureDetector gesture={pan}>
-                        <Animated.View style={[cardStyle]} className="w-full h-full px-0 z-10 shadow-2xl shadow-black">
-                            <SwipeableCard
-                                candidate={activeCandidate}
-                                onDetailsPress={() => setSelectedPlace(activeCandidate)}
-                            />
-
-                            {/* Overlay Labels - Centered & Larger */}
-                            <Animated.View style={[likeOpacity]} className="absolute top-1/3 left-10 -rotate-12 border-4 border-green-400 rounded-2xl px-6 py-4 bg-green-500/20 z-50">
-                                <Text className="text-green-400 font-black text-5xl uppercase tracking-widest shadow-lg shadow-black">LIKE</Text>
-                            </Animated.View>
-                            <Animated.View style={[nopeOpacity]} className="absolute top-1/3 right-10 rotate-12 border-4 border-red-500 rounded-2xl px-6 py-4 bg-red-500/20 z-50">
-                                <Text className="text-red-500 font-black text-5xl uppercase tracking-widest shadow-lg shadow-black">NOPE</Text>
-                            </Animated.View>
-
-                            {/* Subtle Hint Text at bottom */}
-                            <View className="absolute bottom-4 w-full items-center opacity-50 z-10" pointerEvents="none">
-                                <Text className="text-white text-[10px] uppercase tracking-widest font-medium">Swipe Left or Right</Text>
-                            </View>
-
-                        </Animated.View>
-                    </GestureDetector>
+                {/* Card Stack */}
+                <View className="flex-1 px-0">
+                    <CardStack
+                        candidates={unswipedCandidates}
+                        onSwipe={handleSwipe}
+                        onDetailsPress={handleDetailsPress}
+                        onComplete={handleComplete}
+                    />
                 </View>
 
             </SafeAreaView>
@@ -226,7 +115,7 @@ export default function SwipeScreen() {
             {/* Place Details Modal */}
             <PlaceDetailsModal
                 isVisible={!!selectedPlace}
-                onClose={() => setSelectedPlace(null)}
+                onClose={handleCloseDetails}
                 place={selectedPlace}
             />
         </View>

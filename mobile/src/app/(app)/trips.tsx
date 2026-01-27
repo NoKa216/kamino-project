@@ -1,89 +1,48 @@
 /**
- * My Trips Screen - Production Ready
+ * My Trips Screen - View Layer (MVVM Pattern)
  * 
- * Features:
- * - Fixed data rendering (destination at root level)
- * - Resume trip functionality for planning trips
- * - Proper navigation to swipe or details based on status
+ * Pure UI component that renders based on controller state.
+ * All business logic is extracted to useTripsScreenController.
  */
 
-import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Map, Calendar, ChevronRight } from 'lucide-react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { TripsService, GeneratedTrip } from '../../services/trips';
+import { Map, Calendar, ChevronRight, AlertCircle } from 'lucide-react-native';
+import { useTripsScreenController } from '../../features/trips/hooks/useTripsScreenController';
+import { GeneratedTrip } from '../../services/trips';
 
 export default function TripsScreen() {
-    const router = useRouter();
-    const [trips, setTrips] = useState<GeneratedTrip[]>([]);
-    const [refreshing, setRefreshing] = useState(false);
-    const [loading, setLoading] = useState(true);
+    // Controller provides all state and actions
+    const {
+        trips,
+        isLoading,
+        isError,
+        isRefreshing,
+        handleTripPress,
+        handleRefresh
+    } = useTripsScreenController();
 
-    const loadTrips = async () => {
-        try {
-            const data = await TripsService.getUserTrips();
-            setTrips(data);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            loadTrips();
-        }, [])
+    // Loading skeleton
+    const renderLoadingState = () => (
+        <View className="flex-1 items-center justify-center py-20">
+            <ActivityIndicator size="large" color="#A78BFA" />
+            <Text className="text-neutral-400 mt-4">Loading trips...</Text>
+        </View>
     );
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        loadTrips();
-    };
+    // Error state
+    const renderErrorState = () => (
+        <View className="flex-1 items-center justify-center py-20">
+            <AlertCircle color="#EF4444" size={48} />
+            <Text className="text-white text-lg font-bold mt-4">Something went wrong</Text>
+            <Text className="text-neutral-400 text-center px-8 mt-2">
+                Could not load your trips. Pull to refresh.
+            </Text>
+        </View>
+    );
 
-    const handleTripPress = (trip: GeneratedTrip) => {
-        if (trip.status === 'planning') {
-            // Extract already-swiped IDs for filtering
-            // NEW SCHEMA: swipedLikeIds/swipedDislikeIds (arrays of strings)
-            // OLD SCHEMA: swipedLikes/swipedDislikes (arrays of objects)
-
-            let likeIds: string[] = [];
-            let dislikeIds: string[] = [];
-
-            // Try new lean schema first
-            if (trip.swipedLikeIds) {
-                likeIds = trip.swipedLikeIds;
-            } else if (trip.swipedLikes) {
-                // Backward compatibility: extract IDs from old object array
-                likeIds = trip.swipedLikes.map((place: any) => place.id);
-            }
-
-            if (trip.swipedDislikeIds) {
-                dislikeIds = trip.swipedDislikeIds;
-            } else if (trip.swipedDislikes) {
-                // Backward compatibility: extract IDs from old object array
-                dislikeIds = trip.swipedDislikes.map((place: any) => place.id);
-            }
-
-            const alreadySwipedIds = [...likeIds, ...dislikeIds];
-
-            // Resume swipe flow with progress filtering
-            router.push({
-                pathname: '/(app)/trip/[id]/swipe',
-                params: {
-                    id: trip.id || trip.tripId || '',
-                    candidates: JSON.stringify(trip.candidates || []),
-                    swipedIds: JSON.stringify(alreadySwipedIds)
-                }
-            });
-        } else {
-            // Navigate to finalized trip details (TODO: implement details screen)
-            console.log('Navigate to trip details:', trip.id || trip.tripId);
-        }
-    };
-
+    // Empty state
     const renderEmptyState = () => (
         <View className="flex-1 items-center justify-center opacity-50 py-20">
             <View className="w-24 h-24 bg-white/5 rounded-full items-center justify-center mb-6 border border-white/10">
@@ -97,7 +56,6 @@ export default function TripsScreen() {
     );
 
     const renderItem = ({ item }: { item: GeneratedTrip }) => {
-        // FIXED: Read from root level (not nested)
         const destination = item.destination || 'Unknown Destination';
         const startDate = item.startDate;
         const status = item.status || 'planning';
@@ -147,16 +105,22 @@ export default function TripsScreen() {
             <SafeAreaView className="flex-1 px-6 pt-4">
                 <Text className="text-white text-3xl font-black mb-6 tracking-wide">MY TRIPS</Text>
 
-                <FlatList
-                    data={trips}
-                    renderItem={renderItem}
-                    keyExtractor={(item, index) => item.id || item.tripId || `trip-${index}`}
-                    contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
-                    ListEmptyComponent={!loading ? renderEmptyState : null}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#A78BFA" />
-                    }
-                />
+                {isLoading ? renderLoadingState() : (
+                    <FlatList
+                        data={trips}
+                        renderItem={renderItem}
+                        keyExtractor={(item, index) => item.id || item.tripId || `trip-${index}`}
+                        contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
+                        ListEmptyComponent={isError ? renderErrorState : renderEmptyState}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={handleRefresh}
+                                tintColor="#A78BFA"
+                            />
+                        }
+                    />
+                )}
             </SafeAreaView>
         </View>
     );

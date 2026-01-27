@@ -4,12 +4,24 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import '../../global.css';
 import { Loader } from '../components/ui/Loader';
 
 
 LogBox.ignoreAllLogs(true);
+
+// React Query client with sensible defaults for mobile
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 1000 * 60 * 5, // 5 minutes
+            retry: 2,
+            refetchOnWindowFocus: false, // Not needed for mobile
+        },
+    },
+});
 
 function InitialLayout() {
     const { user, loading, isFirstLaunch } = useAuth();
@@ -23,13 +35,11 @@ function InitialLayout() {
         const inAppGroup = segments[0] === '(app)';
         const inOnboarding = segments[0] === 'onboarding';
         const inCreate = segments[0] === 'create';
-        // --- תיקון: הוספנו את generating לרשימת הדפים המותרים ---
         const inGenerating = segments[0] === 'generating';
 
         if (isFirstLaunch && !inOnboarding) {
             router.replace('/onboarding');
         }
-        // --- תיקון: הוספנו את !inGenerating לתנאי ---
         else if (!isFirstLaunch && user && !inAppGroup && !inCreate && !inGenerating) {
             router.replace('/(app)');
         }
@@ -69,13 +79,15 @@ function InitialLayout() {
 
 export default function RootLayout() {
     return (
-        <SafeAreaProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-                <AuthProvider>
-                    <StatusBar barStyle="light-content" backgroundColor="#050505" />
-                    <InitialLayout />
-                </AuthProvider>
-            </GestureHandlerRootView>
-        </SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+            <SafeAreaProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                    <AuthProvider>
+                        <StatusBar barStyle="light-content" backgroundColor="#050505" />
+                        <InitialLayout />
+                    </AuthProvider>
+                </GestureHandlerRootView>
+            </SafeAreaProvider>
+        </QueryClientProvider>
     );
 }

@@ -10,16 +10,19 @@
  * - PhotoProgressBars
  * - MatchBadge
  * - BottomInfoPanel
+ * 
+ * Uses KaminoImage (expo-image) for optimized caching and transitions.
  */
 
 import React, { memo, useMemo } from 'react';
-import { View, ImageBackground, Pressable } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { PlaceCandidate } from '../../types/place.types';
 import { DEFAULT_PLACE_IMAGE } from '../../constants/defaults';
 import { useSwipeCard } from '../../hooks/useSwipeCard';
 import { PhotoProgressBars } from './PhotoProgressBars';
 import { MatchBadge } from './MatchBadge';
 import { BottomInfoPanel } from './BottomInfoPanel';
+import { KaminoImage } from '../ui/KaminoImage';
 
 interface SwipeableCardProps {
     candidate: PlaceCandidate;
@@ -30,8 +33,7 @@ export const SwipeableCard = memo<SwipeableCardProps>(({ candidate, onDetailsPre
     const { photoIndex, photoUrls, handleNextPhoto, handlePrevPhoto } = useSwipeCard(candidate);
 
     const hasPhotos = photoUrls.length > 0;
-    const hasMultiplePhotos = photoUrls.length > 1;
-    const imageSource = hasPhotos ? { uri: photoUrls[photoIndex] } : { uri: DEFAULT_PLACE_IMAGE };
+    const currentPhotoUrl = hasPhotos ? photoUrls[photoIndex] : DEFAULT_PLACE_IMAGE;
 
     const ratingDisplay = useMemo(() =>
         candidate.rating
@@ -41,33 +43,82 @@ export const SwipeableCard = memo<SwipeableCardProps>(({ candidate, onDetailsPre
     );
 
     return (
-        <View className="flex-1 w-full h-full rounded-[36px] overflow-hidden bg-[#121212] border border-white/10 shadow-2xl shadow-black relative">
-            <ImageBackground source={imageSource} className="flex-1 w-full h-full" resizeMode="cover">
+        <View style={styles.container}>
+            {/* Optimized image with caching - absolute fill with dark fallback */}
+            <KaminoImage
+                source={currentPhotoUrl}
+                style={styles.backgroundImage}
+                contentFit="cover"
+                priority="high"
+                alt={candidate.name}
+            />
 
-                {/* Tap zones */}
-                <View className="absolute inset-0 flex-row z-10">
-                    <Pressable className="w-[30%] h-full" onPress={handlePrevPhoto} />
-                    <Pressable className="flex-1 h-full" onPress={onDetailsPress} />
-                    <Pressable className="w-[30%] h-full" onPress={handleNextPhoto} />
-                </View>
+            {/* Tap zones */}
+            <View style={styles.tapZones}>
+                <Pressable style={styles.leftZone} onPress={handlePrevPhoto} />
+                <Pressable style={styles.centerZone} onPress={onDetailsPress} />
+                <Pressable style={styles.rightZone} onPress={handleNextPhoto} />
+            </View>
 
-                <PhotoProgressBars totalPhotos={photoUrls.length} currentIndex={photoIndex} />
-                <MatchBadge text={candidate.matchTag || `Perfect for ${candidate.suggestedCategory}`} />
+            <PhotoProgressBars totalPhotos={photoUrls.length} currentIndex={photoIndex} />
+            <MatchBadge text={candidate.matchTag || `Perfect for ${candidate.suggestedCategory}`} />
 
-                <BottomInfoPanel
-                    category={candidate.suggestedCategory}
-                    name={candidate.name}
-                    location={candidate.location}
-                    ratingDisplay={ratingDisplay}
-                    description={candidate.description}
-                    onPress={onDetailsPress}
-                />
-            </ImageBackground>
+            <BottomInfoPanel
+                category={candidate.suggestedCategory}
+                name={candidate.name}
+                location={candidate.location}
+                ratingDisplay={ratingDisplay}
+                description={candidate.description}
+                onPress={onDetailsPress}
+            />
         </View>
     );
 });
 
 SwipeableCard.displayName = 'SwipeableCard';
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        borderRadius: 36,
+        overflow: 'hidden',
+        backgroundColor: '#121212', // Prevent white flash
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    // Absolute positioning to fill entire card with dark background fallback
+    backgroundImage: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#121212', // Match container to prevent white flash
+    },
+    tapZones: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        flexDirection: 'row',
+        zIndex: 10,
+    },
+    leftZone: {
+        width: '30%',
+        height: '100%',
+    },
+    centerZone: {
+        flex: 1,
+        height: '100%',
+    },
+    rightZone: {
+        width: '30%',
+        height: '100%',
+    },
+});
 
 // ============================================================================
 // UTILITIES

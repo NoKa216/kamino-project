@@ -63,7 +63,22 @@ Return STRICTLY JSON array:
     try {
         const result = await model.generateContent(prompt);
         const text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(text);
+
+        // Robust JSON parsing with fallback
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(text);
+        } catch (parseError) {
+            // Fallback: Try to extract JSON array using regex (for dirty LLM responses)
+            console.warn('[AI] Direct JSON parse failed, attempting regex extraction...');
+            const arrayMatch = text.match(/\[[\s\S]*\]/);
+            if (!arrayMatch) {
+                console.error('[AI] Could not extract JSON array from response. Raw text:', text.substring(0, 500));
+                return [];
+            }
+            parsed = JSON.parse(arrayMatch[0]);
+        }
+
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
         console.error('[AI] Generation failed:', error);

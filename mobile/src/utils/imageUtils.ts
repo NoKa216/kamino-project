@@ -29,7 +29,7 @@ const API_BASE_URL = getBaseUrl();
  * @param maxWidth - Maximum width in pixels (default: 1000)
  * @returns Backend proxy URL for the photo
  */
-export function getPhotoUrl(photoRef: string, maxWidth: number = 1000): string {
+export function getPhotoUrl(photoRef: string, maxWidth: number = 600): string {
     if (!photoRef) return '';
 
     // Route through backend proxy to hide API key
@@ -43,7 +43,7 @@ export function getPhotoUrl(photoRef: string, maxWidth: number = 1000): string {
  * @param maxWidth - Maximum width for each image
  * @returns Array of proxy URLs
  */
-export function getPhotoUrls(photoRefs: string[], maxWidth: number = 1000): string[] {
+export function getPhotoUrls(photoRefs: string[], maxWidth: number = 600): string[] {
     return photoRefs.map(ref => getPhotoUrl(ref, maxWidth));
 }
 

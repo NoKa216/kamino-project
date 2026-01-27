@@ -39,26 +39,96 @@ interface RawAICandidate {
 export const GeminiClient = {
     /**
      * Generate place candidates using AI
+     * Includes exponential backoff retry for transient errors (503, 429)
      * 
      * @param input - User preferences and trip context
      * @returns Array of AI-generated place candidates
      */
     generatePlaceCandidates: async (input: DiscoveryInput): Promise<Partial<PlaceCandidate>[]> => {
-        try {
-            const prompt = buildPrompt(input);
-            const result = await model.generateContent(prompt);
+        const maxRetries = 3;
+        let attempt = 0;
+        const prompt = buildPrompt(input);
 
-            const text = result.response
-                .text()
-                .replace(/```json/g, '')
-                .replace(/```/g, '')
-                .trim();
+        while (attempt < maxRetries) {
+            try {
+                const result = await model.generateContent(prompt);
+                const text = result.response
+                    .text()
+                    .replace(/```json/g, '')
+                    .replace(/```/g, '')
+                    .trim();
 
-            return parseAndValidate(text);
-        } catch (error) {
-            console.error('[Gemini] Generation failed:', error);
-            return [];
+                return parseAndValidate(text);
+            } catch (error: any) {
+                // Check if error is transient (503 Overloaded, 429 Rate Limit)
+                const isTransient =
+                    error?.status === 503 ||
+                    error?.status === 429 ||
+                    error?.message?.includes('503') ||
+                    error?.message?.includes('Overloaded') ||
+                    error?.message?.includes('overloaded') ||
+                    error?.message?.includes('RESOURCE_EXHAUSTED');
+
+                if (isTransient && attempt < maxRetries - 1) {
+                    attempt++;
+                    const delay = 1000 * Math.pow(2, attempt); // 2s, 4s, 8s
+                    console.warn(`[Gemini] Model overloaded (503/429). Retrying in ${delay}ms... (Attempt ${attempt}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    console.error('[Gemini] Generation failed after retries:', error);
+                    return [];
+                }
+            }
         }
+
+        console.error('[Gemini] Service unavailable after maximum retries');
+        return [];
+    },
+
+    /**
+     * Generate text response for any prompt (used for itinerary generation, etc.)
+     * Includes exponential backoff retry for transient errors (503, 429)
+     * 
+     * @param prompt - The prompt to send to Gemini
+     * @returns Raw text response from AI
+     */
+    generateText: async (prompt: string): Promise<string> => {
+        const maxRetries = 3;
+        let attempt = 0;
+
+        while (attempt < maxRetries) {
+            try {
+                const result = await model.generateContent(prompt);
+                const text = result.response
+                    .text()
+                    .replace(/```json/g, '')
+                    .replace(/```/g, '')
+                    .trim();
+                return text; // Success! Return immediately
+            } catch (error: any) {
+                // Check if error is transient (503 Overloaded, 429 Rate Limit)
+                const isTransient =
+                    error?.status === 503 ||
+                    error?.status === 429 ||
+                    error?.message?.includes('503') ||
+                    error?.message?.includes('Overloaded') ||
+                    error?.message?.includes('overloaded') ||
+                    error?.message?.includes('RESOURCE_EXHAUSTED');
+
+                if (isTransient && attempt < maxRetries - 1) {
+                    attempt++;
+                    const delay = 1000 * Math.pow(2, attempt); // 2s, 4s, 8s
+                    console.warn(`[Gemini] Model overloaded (503/429). Retrying in ${delay}ms... (Attempt ${attempt}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    // Fatal error or out of retries
+                    console.error('[Gemini] Text generation failed after retries:', error);
+                    throw error;
+                }
+            }
+        }
+
+        throw new Error('[Gemini] Service unavailable after maximum retries');
     },
 };
 

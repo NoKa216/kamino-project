@@ -9,7 +9,8 @@ import {
     generateTripCandidates,
     getUserTrips,
     getTripById,
-    swipePlace
+    swipePlace,
+    buildItinerary
 } from '../controllers/trips.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -20,5 +21,7 @@ router.post('/generate', authenticate, generateTripCandidates);
 router.get('/', authenticate, getUserTrips);
 router.get('/:tripId', authenticate, getTripById);
 router.post('/:tripId/swipe', authenticate, swipePlace);
+router.post('/:tripId/build-itinerary', authenticate, buildItinerary);
 
 export default router;
+
